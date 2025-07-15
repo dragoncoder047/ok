@@ -106,12 +106,11 @@ textarea:focus {
 	</div>
 </body>
 
-<script src="oK.js"></script>
-<script src="convert.js"></script>
+<script type="module">
+import { parse, format, run, setIO, baseEnv, tFUNC, tQUOTE, done, version } from "./oK.js";
+import { tok, tojs } from "./convert.js"
 
-<script>
-
-document.getElementById("textedit").onkeydown = function(event) {
+document.getElementById("textedit").onkeydown = event => {
 	if (event.keyCode == 13 && event.shiftKey) {
 		saveBuffer();
 		if (this.selectionStart == this.selectionEnd) {
@@ -166,7 +165,7 @@ var scroll = document.getElementById("scroll");
 var panel = document.getElementById("scroll-h");
 var prompt = document.getElementById("prompt");
 
-help = `oK has atom, list (2;\`c), dict \`a\`b!(2;\`c) and func {[x;y]x+y}
+var help = `oK has atom, list (2;\`c), dict \`a\`b!(2;\`c) and func {[x;y]x+y}
 20 primitives/verbs, 6 operators/adverbs and 3 system functions
 
 Verb       (unary)    Adverb             Noun         (null)
@@ -216,9 +215,10 @@ function escapeHTML(text) {
 }
 
 function toggle(id) {
-	e = document.getElementById(id);
+	var e = document.getElementById(id);
 	e.style.display = e.style.display == "none" ? "inline" : "none";
 }
+window.toggle = toggle; // to make it accessible to onclick handlers
 
 function processInput(e) {
 	if (e.keyCode == 38) {
@@ -297,11 +297,11 @@ function processLine() {
 		return;
 	}
 	if (prompt.value == "\\f") {
-		printEnv(function(v) { return v.t >= 5 && v.t != 13; }, "functions");
+		printEnv(v => v.t >= tFUNC && v.t != tQUOTE, "functions");
 		return;
 	}
 	if (prompt.value == "\\v") {
-		printEnv(function(v) { return v.t < 5; }, "variables");
+		printEnv(v => v.t < tFUNC, "variables");
 		return;
 	}
 	if (prompt.value == "\\h") {
@@ -372,8 +372,8 @@ function print(x, y) {
 	try {
 		var t = tojs(y);
 		if (typeof t == "string") { printRepl(escapeHTML(t)); return y; }
-		if (Array.isArray(t) && t.every(function(v) { return typeof v == "string"; })) {
-			t.map(function(v) { printRepl(escapeHTML(v)); }); return y;
+		if (Array.isArray(t) && t.every(v => typeof v == "string")) {
+			t.map(v => printRepl(escapeHTML(v))); return y;
 		}
 	}
 	catch(e) {}

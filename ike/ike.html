@@ -153,14 +153,14 @@ button:focus {
 	</div>
 	<canvas class="full" width="480" height="480" id="fullcanvas"></canvas>
 </div>
-<script src="../oK.js"></script>
-<script src="../convert.js"></script>
 <script src="text.js"></script>
 <script src="noise.js"></script>
 <script src="audio.js"></script>
 <script src="filesaver.js"></script>
 <script src="recording.js"></script>
-<script>
+<script type="module">
+import { k, tLIST, parse, run, setIO, natives } from "../oK.js";
+import { tok, tojs } from "../convert.js";
 
 // install extended math/utility functions in oK:
 
@@ -178,7 +178,7 @@ var kajax = function(a) {
 				return;
 			}
 			var result = tok(JSON.parse(xhr.responseText));
-			call(callback, k(3, [result]), env);
+			call(callback, k(tLIST, [result]), env);
 		}
 		xhr.send();
 	}

@@ -26,51 +26,53 @@ var TN = [
 	"quote"     , // 13 : value (for quoting verbs/etc as a value)
 ];
 
-var NIL = ks("");
-var k0 = k(0, 0);
-var k1 = k(0, 1);
-var EC = [["\\","\\\\"],["\"","\\\""],["\n","\\n"],["\t","\\t"]];
+export const tNUMBER = 0, tCHAR = 1, tSYMBOL = 2, tLIST = 3, tDICT = 4, tFUNC = 5, tVIEW = 6, tREF = 7, tVERB = 8, tADVERB = 9, tRETURN = 10, tNIL = 11, tCOND = 12, tQUOTE = 13;
+
+var NIL = sym("");
+var k0 = k(tNUMBER, 0);
+var k1 = k(tNUMBER, 1);
+var ESCAPE_PAIRS = [["\\","\\\\"],["\"","\\\""],["\n","\\n"],["\t","\\t"]];
 var kt = [-9, -10, -11, 0, 99, 102, NaN, NaN, 107, 105, NaN, NaN, NaN];
-var SP = k(1, " ".charCodeAt(0));
-var NA = k(0, NaN);
+var SP = k(tCHAR, " ".charCodeAt(0));
+var NA = k(tNUMBER, NaN);
 
-function k     (t, v)    { return { 't':t, 'v':v }; }
-function md    (x, y)    { return { t:4, k:sl(x,y), v:y }; }
-function ks    (x)       { return k(2, x); }
-function asVerb(x, y, z) { return { t:8, v:x, l:y, r:z }; }
-function kl    (x)       { return x.length==1 ? x[0] : k(3,x); }
-function kf    (x)       { return match(k(3,[]), x).v || match(k0, x).v; }
-function kb    (x)       { return x ? k1 : k0; }
-function s     (x)       { return x.t == 3 && x.v.every(function(c) { return c.t == 1; }); }
+export function k(t, v)  { return { 't':t, 'v':v }; }
+function dict  (x, y)    { return { t:tDICT, k:samelen(x,y), v:y }; }
+export function sym(x)   { return k(tSYMBOL, x); }
+function asVerb(x, y, z) { return { t:tVERB, v:x, l:y, r:z }; }
+function wlist (x)       { return x.length==1 ? x[0] : k(tLIST,x); }
+function kf    (x)       { return match(k(tLIST,[]), x).v || match(k0, x).v; }
+function tobool(x)       { return x ? k1 : k0; }
+function isstr (x)       { return x.t == tLIST && x.v.every(c => c.t == tCHAR); }
 function kmod  (x, y)    { return x-y*Math.floor(x/y); }
-function len   (x)       { return l(x).v.length; }
-function krange(x, f)    { var r=[]; for(var z=0;z<x;z++) { r.push(f(z)); } return k(3,r); }
-function h2    (x)       { return (x.v+0x100).toString(16).substr(-2); }
+function len   (x)       { return enslist(x).v.length; }
+function krange(x, f)    { var r=[]; for(var z=0;z<x;z++) { r.push(f(z)); } return k(tLIST,r); }
+function hex2  (x)       { return (x.v+0x100).toString(16).substring(-2); }
 function lget  (x, y)    { if(y<0||y>=len(x)) { throw new Error("length error."); } return x.v[y]; }
-function dget  (x, y)    { var i=find(x.k, y); return (i.v==len(x.k)) ? NA : atx(x.v, i); }
-function lset  (x, y, z) { if (len(x) <= p(y)) { throw new Error("index error."); } x.v[y.v]=z; }
-function dset  (x, y, z) { var i=find(x.k, y).v; if(i==len(x.k)) { x.k.v.push(y); } x.v.v[i]=z; }
-function lower (x)       { return k(1, String.fromCharCode(x.v).toLowerCase().charCodeAt(0)); }
-function kmap  (x, f)    { return k(3, l(x).v.map(f)); }
-function kzip  (x, y, f) { return kmap(sl(x,y), function(z, i) { return f(z, y.v[i]); }); }
-function sl    (x, y)    { if (len(x) != len(y)) { throw new Error("length error."); } return x; }
-function n     (x)       { return (x.t==0||x.t==1) ? x : ct(x, 0); }
-function l     (x)       { return ct(x, 3); }
-function d     (x)       { return ct(x, 4); }
-function a     (x)       { if (x.t > 2) { throw new Error("domain error."); } return x; }
-function na    (x)       { return x.t == 0 && isNaN(x.v); }
+function dget  (x, y)    { var i=findm(x.k, y); return (i.v==len(x.k)) ? NA : subscr(x.v, i); }
+function lset  (x, y, z) { if (len(x) <= ensureposint(y)) { throw new Error("index error."); } x.v[y.v]=z; }
+function dset  (x, y, z) { var i=findm(x.k, y).v; if(i==len(x.k)) { x.k.v.push(y); } x.v.v[i]=z; }
+function lower (x)       { return k(tCHAR, String.fromCharCode(x.v).toLowerCase().charCodeAt(0)); }
+function kmap  (x, f)    { return k(tLIST, enslist(x).v.map(f)); }
+function kzip  (x, y, f) { return kmap(samelen(x,y), (z, i) => f(z, y.v[i])); }
+function samelen(x, y)    { if (len(x) != len(y)) { throw new Error("length error."); } return x; }
+function numeric(x)       { return (x.t==tNUMBER||x.t==tCHAR) ? x : ensuretype(x, tNUMBER); }
+function enslist(x)       { return ensuretype(x, tLIST); }
+function ensdict(x)       { return ensuretype(x, tDICT); }
+function ensatom(x)       { if (x.t > 2) { throw new Error("domain error."); } return x; }
+function nanp   (x)       { return x.t == tNUMBER && isNaN(x.v); }
 
-function stok(x) { return kl(krange(x.length, function(z) { return k(1,x.charCodeAt(z)); }).v); }
-function c(x)    { return (x.t==3) ? k(x.t, x.v.slice(0)) : (x.t==4) ? md(c(x.k), c(x.v)) : x; }
-function dc(x)   { return (x.t==3) ? k(x.t, x.v.map(dc))  : (x.t==4) ? md(dc(x.k), dc(x.v)) : x; }
-function ct(n,t) { if (n.t!=t) throw new Error(TN[t]+" expected, found "+TN[n.t]+"."); return n; }
-function p(x) { if (n(x).v<0||x.v%1!=0) { throw new Error("positive int expected."); } return x.v; }
-function ktos(x, esc) {
-	if (x.t != 3) { x = enlist(x); }
-	var h = x.v.some(function(v){ return (v.v<32||v.v>127)&v.v!=9&v.v!=10; });
-	if (h) { return "0x"+x.v.map(h2).join(""); }
-	var r = x.v.map(function(k) { return String.fromCharCode(k.v); }).join("");
-	return esc ? '"'+EC.reduce(function(r,p) { return r.split(p[0]).join(p[1]); }, r)+'"' : r;
+function strtokval(x) { return wlist(krange(x.length, z => k(tCHAR,x.charCodeAt(z))).v); }
+function clone(x)    { return (x.t==tLIST) ? k(x.t, x.v.slice(0)) : (x.t==tDICT) ? dict(clone(x.k), clone(x.v)) : x; }
+function deepclone(x)   { return (x.t==tLIST) ? k(x.t, x.v.map(deepclone))  : (x.t==tDICT) ? dict(deepclone(x.k), deepclone(x.v)) : x; }
+function ensuretype(n,t) { if (n.t!=t) throw new Error(TN[t]+" expected, found "+TN[n.t]+"."); return n; }
+function ensureposint(x) { if (numeric(x).v<0||x.v%1!=0) { throw new Error("positive int expected."); } return x.v; }
+function atomtostring(x, esc) {
+	if (x.t != tLIST) { x = enlist(x); }
+	var h = x.v.some(v => (v.v<32||v.v>127)&v.v!=9&v.v!=10);
+	if (h) { return "0x"+x.v.map(hex2).join(""); }
+	var r = x.v.map(k => String.fromCharCode(k.v)).join("");
+	return esc ? '"'+ESCAPE_PAIRS.reduce((r,p) => r.split(p[0]).join(p[1]), r)+'"' : r;
 }
 
 ////////////////////////////////////
@@ -79,175 +81,176 @@ function ktos(x, esc) {
 //
 ////////////////////////////////////
 
-function plus  (x, y) { return k(0, n(x).v + n(y).v); }
-function minus (x, y) { return k(0, n(x).v - n(y).v); }
-function times (x, y) { return k(0, n(x).v * n(y).v); }
-function divide(x, y) { return k(0, n(x).v / n(y).v); }
-function mod   (x, y) { return k(0, n(x).v>0 ? kmod(n(y).v, x.v) : Math.floor(n(y).v / -x.v)); }
-function max   (x, y) { return na(x)?y:na(y)?x:k(0, Math.max(n(x).v, n(y).v)); }
-function min   (x, y) { return                 k(0, Math.min(n(x).v, n(y).v)); }
-function less  (x, y) { return kb(x.t==3 && y.t==3 ? clist(x,y,1) : a(x).v < a(y).v); }
-function more  (x, y) { return kb(x.t==3 && y.t==3 ? clist(x,y,0) : a(x).v > a(y).v); }
-function equal (x, y) { return kb((x.v == y.v) || (na(x) && na(y))); }
-function join  (x, y) { return l(y).v.reduce(function(z, y) { return cat(z, cat(x, y)); }); }
+function plus  (x, y) { return k(tNUMBER, numeric(x).v + numeric(y).v); }
+function minus (x, y) { return k(tNUMBER, numeric(x).v - numeric(y).v); }
+function times (x, y) { return k(tNUMBER, numeric(x).v * numeric(y).v); }
+function divide(x, y) { return k(tNUMBER, numeric(x).v / numeric(y).v); }
+function mod   (x, y) { return k(tNUMBER, numeric(x).v>0 ? kmod(numeric(y).v, x.v) : Math.floor(numeric(y).v / -x.v)); }
+function max   (x, y) { return nanp(x)?y:nanp(y)?x:k(tNUMBER, Math.max(numeric(x).v, numeric(y).v)); }
+function min   (x, y) { return                 k(tNUMBER, Math.min(numeric(x).v, numeric(y).v)); }
+function less  (x, y) { return tobool(x.t==tLIST && y.t==tLIST ? comparelists(x,y,1) : ensatom(x).v < ensatom(y).v); }
+function more  (x, y) { return tobool(x.t==tLIST && y.t==tLIST ? comparelists(x,y,0) : ensatom(x).v > ensatom(y).v); }
+function equal (x, y) { return tobool((x.v == y.v) || (nanp(x) && nanp(y))); }
+function join  (x, y) { return enslist(y).v.reduce((z, y) => concat(z, concat(x, y))); }
 function ident    (x) { return x; }
 function rident(x, y) { return y; }
-function negate   (x) { return k(0, -n(x).v); }
-function first    (x) { return (x.t == 4) ? first(x.v) : (x.t != 3) ? x : len(x) ? x.v[0]:k(3,[]); }
-function sqrt     (x) { return k(0, Math.sqrt(n(x).v)); }
-function keys     (x) { return c(d(x).k); }
-function rev      (x) { return x.t==4?md(rev(x.k),rev(x.v)):x.t==3?k(3,c(l(x)).v.reverse()):x; }
+function negate   (x) { return k(tNUMBER, -numeric(x).v); }
+function first    (x) { return (x.t == tDICT) ? first(x.v) : (x.t != tLIST) ? x : len(x) ? x.v[0]:k(tLIST,[]); }
+function sqrt     (x) { return k(tNUMBER, Math.sqrt(numeric(x).v)); }
+function keys     (x) { return clone(ensdict(x).k); }
+function rev      (x) { return x.t==tDICT?dict(rev(x.k),rev(x.v)):x.t==tLIST?k(tLIST,clone(enslist(x)).v.reverse()):x; }
 function asc      (x) { return grade(-1, x); }
 function desc     (x) { return grade(1, x); }
-function not      (x) { return equal(n(x), k0); }
-function enlist   (x) { return k(3, [x]); }
-function isnull   (x) { return max(match(x, NIL),match(x,k(11))); }
-function count    (x) { return k(0, x.t == 4 ? len(x.v) : x.t == 3 ? len(x) : 1); }
-function floor    (x) { return x.t == 1 ? lower(x) : k(0, Math.floor(n(x).v)); }
-function type     (x) { return k(0, kt[x.t]); }
-function kfmt     (x) { var r=stok(format(x, 0, 1)); return x.t==3 ? x : r.t==3 ? r : enlist(r); }
-function real     (x) { return krange(n(x).v, function() { return k(0, Math.random()); }); }
+function not      (x) { return equal(numeric(x), k0); }
+function enlist   (x) { return k(tLIST, [x]); }
+function isnull   (x) { return max(match(x, NIL),match(x,k(tNIL))); }
+function count    (x) { return k(tNUMBER, x.t == tDICT ? len(x.v) : x.t == tLIST ? len(x) : 1); }
+function floor    (x) { return x.t == tCHAR ? lower(x) : k(tNUMBER, Math.floor(numeric(x).v)); }
+function type     (x) { return k(tNUMBER, kt[x.t]); }
+function kfmt     (x) { var r=strtokval(format(x, 0, 1)); return x.t==tLIST ? x : r.t==tLIST ? r : enlist(r); }
+function real     (x) { return krange(numeric(x).v, () => k(tNUMBER, Math.random())); }
 
 function iota(x) {
-	if (x.t == 4) { return keys(x); }
-	var i = krange(Math.abs(n(x).v), k.bind(null, 0)); return x.v>=0 ? i : ar(plus)(x, i);
+	if (x.t == tDICT) { return keys(x); }
+	var i = krange(Math.abs(numeric(x).v), k.bind(null, 0)); return x.v>=0 ? i : rightatomicdyad(plus)(x, i);
 }
 
-function cat(x, y) {
-	if (x.t==4&&y.t==4) { x=c(x); kmap(y.k, function(v) { dset(x,v,dget(y,v)); }); return x; };
-	return k(3, (x.t==3?x.v:[x]).concat(y.t==3?y.v:[y]));
+function concat(x, y) {
+	if (x.t==tDICT&&y.t==tDICT) { x=clone(x); kmap(y.k, v => { dset(x,v,dget(y,v)); }); return x; };
+	return k(tLIST, (x.t==tLIST?x.v:[x]).concat(y.t==tLIST?y.v:[y]));
 }
 
 function keval(x, env) {
-	if (x.t == 5) { return x.env.d; }
-	return x.t == 4 ? c(x.v) : x.t == 2 ? env.lookup(x, true) : run(parse(ktos(x)), env);
+	if (x.t == tFUNC) { return x.env.d; }
+	return x.t == tDICT ? clone(x.v) : x.t == tSYMBOL ? env.lookup(x, true) : run(parse(atomtostring(x)), env);
 }
 
 function dfmt(x, y) {
-	if (x.t == 2 && x.v == '' && y.t == 3) { return s(y) ? k(2,ktos(y)) : kmap(y, function(z) { return dfmt(x, z); }); }
-	if ( x.t == 3           && y.t == 3) { return kzip(x, y, dfmt); }
-	if ( x.t == 3           && y.t != 3) { return kmap(x, function(z) { return dfmt(z, y); }); }
-	if ((x.t == 2 || !s(y)) && y.t == 3) { return kmap(y, function(z) { return dfmt(x, z); }); }
-	if (x.t == 2) { return {b: k(0,y.v&1), i: k(0,y.v|0), f: k(0,y.v), c: k(1,y.v)}[x.v]; }
-	if (y.t == 1) { return y; } var r=c(y); var d=Math.abs(x.v);
+	if (x.t == tSYMBOL && x.v == '' && y.t == tLIST) { return isstr(y) ? k(tSYMBOL,atomtostring(y)) : kmap(y, z => dfmt(x, z)); }
+	if (x.t == tLIST           && y.t == tLIST) { return kzip(x, y, dfmt); }
+	if (x.t == tLIST           && y.t != tLIST) { return kmap(x, z => dfmt(z, y)); }
+	if ((x.t == tSYMBOL || !isstr(y)) && y.t == tLIST) { return kmap(y, z => dfmt(x, z)); }
+	if (x.t == tSYMBOL) { return {b: k(tNUMBER,y.v&1), i: k(tNUMBER,y.v|0), f: k(tNUMBER,y.v), c: k(tCHAR,y.v)}[x.v]; }
+	if (y.t == tCHAR) { return y; } var r=clone(y); var d=Math.abs(x.v);
 	while(len(r) < d) { x.v>0 ? r.v.push(SP) : r.v.unshift(SP); }
 	while(len(r) > d) { x.v>0 ? r.v.pop()    : r.v.shift();     }
 	return r;
 }
 
-function fill(x, y) { return pisnull(y).v ? x : y; }
+function fill(x, y) { return nullish(y).v ? x : y; }
 
 function except(x, y) {
-	y = y.t == 3 ? y : enlist(y);
-	return k(3, x.v.filter(function(z) { return na(pfind(y, z)); }));
+	y = y.t == tLIST ? y : enlist(y);
+	return k(tLIST, x.v.filter(z => nanp(finde(y, z))));
 }
 
-function filt(x,y,k) { return y.t == 4 ? md(k,atx(y,k)) : atx(y,k) }
-function ddrop(x, y) { var k = except(d(y).k, x); return md(k, atx(y, k)); }
+function filter(x,y,k) { return y.t == tDICT ? dict(k,subscr(y,k)) : subscr(y,k) }
+function dictdrop(x, y) { var k = except(ensdict(y).k, x); return dict(k, subscr(y, k)); }
 function drop(x, y, env) {
-	if (x.t == 5 || x.t == 8 || x.t == 9) { return filt(x,y, where(am(not)(each(x,y,env),env))) }
-	if (y.t == 4) { return md(drop(x, y.k, env), drop(x, y.v, env)); }
-	return (y.t != 3 || len(y) < 1) ? y : k(3, n(x).v<0 ? y.v.slice(0,x.v) : y.v.slice(x.v));
+	if (x.t == tFUNC || x.t == tVERB || x.t == tADVERB) { return filter(x,y, where(atomicmonad(not)(each(x,y,env),env))) }
+	if (y.t == tDICT) { return dict(drop(x, y.k, env), drop(x, y.v, env)); }
+	return (y.t != tLIST || len(y) < 1) ? y : k(tLIST, numeric(x).v<0 ? y.v.slice(0,x.v) : y.v.slice(x.v));
 }
 
 function take(x, y, env) {
-	if (x.t == 5 || x.t == 8 || x.t == 9) { return filt(x,y, where(each(x,y,env),env)) }
-	if (y.t == 4) { return md(take(x, y.k, env), take(x, y.v, env)); }
-	if (y.t != 3 || len(y) == 0) { y = enlist(y); }
-	var s=n(x).v<0?kmod(x.v, len(y)):0;
-	return krange(Math.abs(x.v), function(x) { return y.v[kmod(x+s, len(y))]; });
+	if (x.t == tFUNC || x.t == tVERB || x.t == tADVERB) { return filter(x,y, where(each(x,y,env),env)) }
+	if (y.t == tDICT) { return dict(take(x, y.k, env), take(x, y.v, env)); }
+	if (y.t != tLIST || len(y) == 0) { y = enlist(y); }
+	var s=numeric(x).v<0?kmod(x.v, len(y)):0;
+	return krange(Math.abs(x.v), x => y.v[kmod(x+s, len(y))]);
 }
 
 function reshape(x, y) {
-	if (y.t == 4) { return md(x, atx(y, x)); }
-	if (y.t != 3) { y = enlist(y); }
+	if (y.t == tDICT) { return dict(x, subscr(y, x)); }
+	if (y.t != tLIST) { y = enlist(y); }
 	var a = first(x); var b = x.v[len(x)-1]; var c = 0;
 	function rshr(x, y, i) {
-		return krange(x.v[i].v, function(z) {
+		return krange(x.v[i].v, z => {
 			return i==len(x)-1 ? y.v[kmod(c++, len(y))] : rshr(x, y, i+1);
 		});
 	}
-	return na(a) ? (!len(y) ? y : cut(krange(len(y)/b.v, function(z) { return k(0, z*b.v); }), y)) :
-	       na(b) ? cut(krange(a.v, function(z) { return k(0, Math.floor(z*len(y)/a.v)); }), y) :
-	       rshr(l(x), len(y) ? y : enlist(y), 0);
+	return nanp(a) ? (!len(y) ? y : cut(krange(len(y)/b.v, z => k(tNUMBER, z*b.v)), y)) :
+	       nanp(b) ? cut(krange(a.v, z => k(tNUMBER, Math.floor(z*len(y)/a.v))), y) :
+	       rshr(enslist(x), len(y) ? y : enlist(y), 0);
 }
 
 function match(x, y) {
 	if (x.t != y.t) { return k0; }
-	if (x.t == 4) { return min(match(x.k, y.k), match(x.v, y.v)); }
-	if (x.t != 3) { return equal(x, y); }
+	if (x.t == tDICT) { return min(match(x.k, y.k), match(x.v, y.v)); }
+	if (x.t != tLIST) { return equal(x, y); }
 	if (len(x) != len(y)) { return k0; }
-	return kb(x.v.every(function(x,i) { return match(x, y.v[i]).v; }));
+	return tobool(x.v.every((x,i) => match(x, y.v[i]).v));
 }
 
-function find(x, y) { y=x.v.findIndex(function(z){return match(z,y).v}); return k(0,y>=0?y:len(x)) }
-function pfind(x, y) { y=x.v.findIndex(function(z){return equal(z,y).v}); return y>=0?k(0,y):NA }
-function pisnull(x) { return kb(match(x, NIL).v || match(x, k(11)).v || na(x)); }
+function findm(x, y) { y=x.v.findIndex(z => {return match(z,y).v}); return k(tNUMBER,y>=0?y:len(x)) }
+function finde(x, y) { y=x.v.findIndex(z => {return equal(z,y).v}); return y>=0?k(tNUMBER,y):NA }
+function nullish(x) { return tobool(match(x, NIL).v || match(x, k(tNIL)).v || nanp(x)); }
 
 function cut(x, y, env) {
-	return kzip(x, cat(drop(k1,x,env),count(y)), function(a, b) { // {x{x@y+!z-y}[y]'1_x,#y} ?
-		var r=[]; for(var z=p(a);z<p(b);z++) { r.push(lget(y,z)); } return k(3,r);
+	return kzip(x, concat(drop(k1,x,env),count(y)), (a, b) => { // {x{x@y+!z-y}[y]'1_x,#y} ?
+		var r=[]; for(var z=ensureposint(a);z<ensureposint(b);z++) { r.push(lget(y,z)); } return k(tLIST,r);
 	});
 }
 
 function rnd(x, y, env) {
-	if (x.t == 4) { return atx(x.k, ar(pfind)(x.v,y), env); }
-	if (y.t == 1) { return dfmt(k(2,"c"),rnd(x,ar(plus)(y,iota(k(0,26))))); }
-	if (y.t == 3) { return atx(y, rnd(x, count(y))); } p(y);
-	if (n(x).v<0) { if(-x.v>y.v) throw new Error("length error.");return take(x,asc(real(y)),env); }
-	return kmap(iota(x), function(x){ return k(0,Math.floor(Math.random()*y.v)); });
+	if (x.t == tDICT) { return subscr(x.k, rightatomicdyad(finde)(x.v,y), env); }
+	if (y.t == tCHAR) { return dfmt(k(tSYMBOL,"c"),rnd(x,rightatomicdyad(plus)(y,iota(k(tNUMBER,26))))); }
+	if (y.t == tLIST) { return subscr(y, rnd(x, count(y))); }
+    ensureposint(y);
+	if (numeric(x).v<0) { if(-x.v>y.v) throw new Error("length error.");return take(x,asc(real(y)),env); }
+	return kmap(iota(x), () => k(tNUMBER,Math.floor(Math.random()*y.v)));
 }
 
 function flip(x, env) {
-	if (x.t != 3) return enlist(enlist(x))
-	x=eachright(k(8,"#"), over(k(8,"|"), each(k(8,"#"), x, env), env), x, env);
-	return krange(len(first(x)), function(z){
-		return krange(len(x), function(t){ return x.v[t].v[z]; });
+	if (x.t != tLIST) return enlist(enlist(x))
+	x=eachright(k(tVERB,"#"), over(k(tVERB,"|"), each(k(tVERB,"#"), x, env), env), x, env);
+	return krange(len(first(x)), z => {
+		return krange(len(x), t => x.v[t].v[z]);
 	});
 }
 
 function grade(dir, x) {
-	return x.t == 4 ? atx(x.k, grade(dir, x.v)) : k(3, iota(count(x)).v.sort(function(a, b) {
-		var f = function(i) { var v = x.v[i.v]; return s(v) ? ks(ktos(v)) : v; }
+	return x.t == tDICT ? subscr(x.k, grade(dir, x.v)) : k(tLIST, iota(count(x)).v.sort((a, b) => {
+		var f = i => { var v = x.v[i.v]; return isstr(v) ? sym(atomtostring(v)) : v; }
 		var av = f(a), bv = f(b); return less(av,bv).v ? dir : more(av,bv).v ? -dir : a.v - b.v;
 	}));
 }
 
 function where(x, env) {
-	if (x.t == 4) { return atx(x.k, where(x.v, env)); } // {,/(0|x)#'!#x}...
-	var s = kmap(x.t==3 ?x:enlist(x), function(v,i) { return take(k(0,p(v)), k(0,i), env); });
+	if (x.t == tDICT) { return subscr(x.k, where(x.v, env)); } // {,/(0|x)#'!#x}...
+	var s = kmap(x.t==tLIST ?x:enlist(x), (v,i) => take(k(tNUMBER,ensureposint(v)), k(tNUMBER,i), env));
 	return over(asVerb(","), s, env);
 }
 
 function group(x) {
-	var r={t:4, k:unique(x)}; r.v=kmap(r.k, function(){ return k(3,[]); });
-	for(var z=0;z<len(x);z++) { dget(r, x.v[z]).v.push(k(0, z)); } return r;
+	var r={t:tDICT, k:unique(x)}; r.v=kmap(r.k, function(){ return k(tLIST,[]); });
+	for(var z=0;z<len(x);z++) { dget(r, x.v[z]).v.push(k(tNUMBER, z)); } return r;
 }
 
 function unique(x) {
 	var r=[]; for(var z=0;z<len(x);z++) {
-		if (!r.some(function(e) { return match(x.v[z], e).v })) { r.push(x.v[z]); }
-	} return k(3,r);
+		if (!r.some(e => match(x.v[z], e).v)) { r.push(x.v[z]); }
+	} return k(tLIST,r);
 }
 
-function bin(x, y) {
-	var a=0; var b=len(x); if (b<1 || less(y, first(x)).v) { return k(0,-1); }
+function binsearch(x, y) {
+	var a=0; var b=len(x); if (b<1 || less(y, first(x)).v) { return k(tNUMBER,-1); }
 	while(b - a > 1) { var i=a+Math.floor((b-a)/2); if (more(x.v[i], y).v) { b=i; } else { a=i; } }
-	return k(0, a);
+	return k(tNUMBER, a);
 }
 
-function clist(x, y, a) {
+function comparelists(x, y, a) {
 	return match(x,y).v?0: len(x)<len(y)?a: len(x)>len(y)?!a:
 	       less(first(x),first(y)).v?a: more(first(x),first(y)).v?!a:
-	       clist(drop(k1,x),drop(k1,y),a);
+	       comparelists(drop(k1,x),drop(k1,y),a);
 }
 
-function split  (x, y) { return (x.t != 1) ? unpack(x, y) : call(splitimpl, k(3, [x,y])); }
-function unpack (x, y) { return call(unpackimpl, k(3, [x,y])); }
-function pack   (x, y) { return (x.t == 1) ? join(x, y) : call(packimpl, k(3, [x,y])); }
-function kwindow(x, y) { return call(winimpl, k(3, [x,y])); }
-function splice(xyz)   { return call(spliceimpl, k(3, xyz)); }
-function imat(x)       { var i = iota(x); return kmap(i, function(z) { return ar(equal)(z, i); }); }
+function split  (x, y) { return (x.t != tCHAR) ? unpack(x, y) : call(splitimpl, k(tLIST, [x,y])); }
+function unpack (x, y) { return call(unpackimpl, k(tLIST, [x,y])); }
+function pack   (x, y) { return (x.t == tCHAR) ? join(x, y) : call(packimpl, k(tLIST, [x,y])); }
+function kwindow(x, y) { return call(winimpl, k(tLIST, [x,y])); }
+function splice(xyz)   { return call(spliceimpl, k(tLIST, xyz)); }
+function identitymat(x)       { var i = iota(x); return kmap(i, z => rightatomicdyad(equal)(z, i)); }
 function odometer(x)   { return call(odoimpl, enlist(x)); }
 
 
@@ -258,96 +261,96 @@ function odometer(x)   { return call(odoimpl, enlist(x)); }
 ////////////////////////////////////
 
 function each(monad, x, env) {
-	if (x.t == 4) { return md(x.k, each(monad, x.v, env)); }
-	return kmap(x, function(x) { return applym(monad, x, env); });
+	if (x.t == tDICT) { return dict(x.k, each(monad, x.v, env)); }
+	return kmap(x, x => applymonad(monad, x, env));
 }
 
 function eachd(dyad, left, right, env) {
-	if (!env) { return kmap(left, function(x) { return applyd(dyad, x, null, right); }); }
-	if (left.t==4&&right.t==4) { return md(left.k,eachd(dyad,left.v,atx(right,left.k),env)); }
-	if (left.t!=3) { return eachright(dyad, left, right, env); }
-	if (right.t!=3) { return eachleft(dyad, left, right, env); }
-	return kzip(left, right, function(x, y) { return applyd(dyad, x, y, env); });
+	if (!env) { return kmap(left, x => applydyad(dyad, x, null, right)); }
+	if (left.t==tDICT&&right.t==tDICT) { return dict(left.k,eachd(dyad,left.v,subscr(right,left.k),env)); }
+	if (left.t!=tLIST) { return eachright(dyad, left, right, env); }
+	if (right.t!=tLIST) { return eachleft(dyad, left, right, env); }
+	return kzip(left, right, (x, y) => applydyad(dyad, x, y, env));
 }
 
 function eachright(dyad, left, list, env) {
-	return kmap(list, function(x) { return applyd(dyad, left, x, env); });
+	return kmap(list, x => applydyad(dyad, left, x, env));
 }
 
 function eachleft(dyad, list, right, env) {
-	return kmap(list, function(x) { return applyd(dyad, x, right, env); });
+	return kmap(list, x => applydyad(dyad, x, right, env));
 }
 
 function eachprior(dyad, x, env) {
-	var specials = {"+":k0, "*":k1, "-":k0, "&":first(x), ",":k(3,[]), "%":k1};
+	var specials = {"+":k0, "*":k1, "-":k0, "&":first(x), ",":k(tLIST,[]), "%":k1};
 	return eachpc(dyad, (dyad.v in specials) ? specials[dyad.v] : NA, x, env);
 }
 
 function stencil(monad, x, y, env) {
-	return each(monad, call(winimpl, k(3, [x,y]), env))
+	return each(monad, call(winimpl, k(tLIST, [x,y]), env))
 }
 
 function eachpc(dyad, x, y, env) {
-	return kmap(y, function(v) { var t=x; x=v; return applyd(dyad, v, t, env); });
+	return kmap(y, v => { var t=x; x=v; return applydyad(dyad, v, t, env); });
 }
 
 function over(dyad, x, env) {
-	var specials = {"+":k0, "*":k1, "|":k(0,-1/0), "&":k(0,1/0)};
-	if (x.t == 3 && len(x) < 1 && dyad.v in specials) { return specials[dyad.v]; }
-	if (x.t == 3 && len(x) == 1 && dyad.v == ",") { return first(x).t != 3 ? x : first(x); }
-	if (x.t != 3 || len(x) < 1) { return x; }
+	var specials = {"+":k0, "*":k1, "|":k(tNUMBER,-1/0), "&":k(tNUMBER,1/0)};
+	if (x.t == tLIST && len(x) < 1 && dyad.v in specials) { return specials[dyad.v]; }
+	if (x.t == tLIST && len(x) == 1 && dyad.v == ",") { return first(x).t != tLIST ? x : first(x); }
+	if (x.t != tLIST || len(x) < 1) { return x; }
 	return overd(dyad, first(x), drop(k1,x,env), env);
 }
 
 function overd(dyad, x, y, env) {
-	return y.v.reduce(function(x, y) { return applyd(dyad, x, y, env); }, x);
+	return y.v.reduce((x, y) => applydyad(dyad, x, y, env), x);
 }
 
 function eacha(func, args, env) {
-	var x = args[0]; var y = flip(k(3, args.slice(1)), env);
-	if (x.t != 3) { return kmap(y, function(y) { return call(func, cat(x, y), env); }); }
-	return kzip(x, y, function(x, y) { return call(func, cat(x, y), env); });
+	var x = args[0]; var y = flip(k(tLIST, args.slice(1)), env);
+	if (x.t != tLIST) { return kmap(y, y => call(func, concat(x, y), env)); }
+	return kzip(x, y, (x, y) => call(func, concat(x, y), env));
 }
 function overa(func, args, env) {
-	var x = args[0]; var y = flip(k(3, args.slice(1)), env);
-	return y.v.reduce(function(x, y) { return call(func, cat(enlist(x), y), env); }, x);
+	var x = args[0]; var y = flip(k(tLIST, args.slice(1)), env);
+	return y.v.reduce((x, y) => call(func, concat(enlist(x), y), env), x);
 }
 function scana(func, args, env) {
-	var x = args[0]; var y = flip(k(3, args.slice(1)), env);
-	return cat(x, kmap(y, function(y) { return x = call(func, cat(enlist(x), y), env); }));
+	var x = args[0]; var y = flip(k(tLIST, args.slice(1)), env);
+	return concat(x, kmap(y, y => x = call(func, concat(enlist(x), y), env)));
 }
 
 function fixed(monad, x, env) {
 	var r=x, p=x;
-	do { r=applym(monad, p=r, env); } while(!match(p, r).v && !match(r, x).v); return p;
+	do { r=applymonad(monad, p=r, env); } while(!match(p, r).v && !match(r, x).v); return p;
 }
 
 function fixedwhile(monad, x, y, env) {
-	if (x.t == 0) { for(var z=0;z<x.v;z++) { y = applym(monad, y, env); } }
-	else { do { y = applym(monad, y, env); } while (applym(x, y, env).v); } return y;
+	if (x.t == tNUMBER) { for(var z=0;z<x.v;z++) { y = applymonad(monad, y, env); } }
+	else { do { y = applymonad(monad, y, env); } while (applymonad(x, y, env).v); } return y;
 }
 
 function scan(dyad, x, env) {
-	if (x.t != 3 || len(x) <= 1) { return x; }
+	if (x.t != tLIST || len(x) <= 1) { return x; }
 	var i = first(x); var r = enlist(i);
-	kmap(drop(k1,x,env), function(z) { r.v.push(i = applyd(dyad, i, z, env)); }); return r;
+	kmap(drop(k1,x,env), z => { r.v.push(i = applydyad(dyad, i, z, env)); }); return r;
 }
 
 function scand(dyad, x, y, env) {
-	return kmap(y, function(v) { return x = applyd(dyad, x, v, env); });
+	return kmap(y, v => x = applydyad(dyad, x, v, env));
 }
 
 function scanfixed(monad, x, env) {
 	var r=[x]; while(1) {
-		var p = r[r.length-1]; var n = applym(monad, p, env);
+		var p = r[r.length-1]; var n = applymonad(monad, p, env);
 		if (match(p, n).v || match(n, x).v) { break; } r.push(n);
-	} return k(3,r);
+	} return k(tLIST,r);
 }
 
 function scanwhile(monad, x, y, env) {
-	var r=[y]; if (x.t == 0) { for(var z=0;z<x.v;z++) { r.push(y = applym(monad, y, env)); } }
-	else { do { y = applym(monad, y, env); r.push(y); } while (applym(x, y, env).v != 0); }
-	return k(3, r);
+	var r=[y]; if (x.t == tNUMBER) { for(var z=0;z<x.v;z++) { r.push(y = applymonad(monad, y, env)); } }
+	else { do { y = applymonad(monad, y, env); r.push(y); } while (applymonad(x, y, env).v != 0); }
+	return k(tLIST, r);
 }
 
 ////////////////////////////////////
@@ -356,42 +359,42 @@ function scanwhile(monad, x, y, env) {
 //
 ////////////////////////////////////
 
-function am(f) { // create an atomic monad
+function atomicmonad(f) { // create an atomic monad
 	return function recur(x, env) {
-		return x.t == 4 ? md(x.k, recur(x.v, env)) :
-		       x.t == 3 ? kmap(x, function(x) { return recur(x, env); }) : f(x, env);
+		return x.t == tDICT ? dict(x.k, recur(x.v, env)) :
+		       x.t == tLIST ? kmap(x, x => recur(x, env)) : f(x, env);
 	};
 }
-function as(f) { // create a string-atomic monad
+function stringatomicmonad(f) { // create a string-atomic monad
 	return function recur(x, env) {
-		return x.t == 3 && !x.v.every(function(x) { return x.t == 1 }) ?
-		       kmap(x, function(x) { return recur(x, env); }) : f(x, env);
+		return x.t == tLIST && !x.v.every(x => x.t == tCHAR) ?
+		       kmap(x, x => recur(x, env)) : f(x, env);
 	}
 }
-function ar(f) { // create a right atomic dyad
+function rightatomicdyad(f) { // create a right atomic dyad
 	return function recur(x, y, env) {
-		return y.t == 3 ? kmap(y, function(z) { return recur(x, z, env); }) : f(x, y, env);
+		return y.t == tLIST ? kmap(y, z => recur(x, z, env)) : f(x, y, env);
 	};
 }
-function ad(f) { // create an atomic dyad
+function atomicdyad(f) { // create an atomic dyad
 	return function recur(x, y, env) {
-		if (x.t == 4 && y.t == 4) {
-			var r=md(k(3,[]),k(3,[])); kmap(unique(cat(x.k,y.k)), function(k) {
+		if (x.t == tDICT && y.t == tDICT) {
+			var r=dict(k(tLIST,[]),k(tLIST,[])); kmap(unique(concat(x.k,y.k)), k => {
 				var a=dget(x,k), b=dget(y,k); dset(r,k,a==NA?b:b==NA?a:recur(a,b,env));
 			}); return r;
 		}
-		return x.t == 3 && y.t == 3 ? kzip(x, y, function(a,b) { return recur(a, b, env); }) :
-		       x.t == 4 ? md(x.k, recur(x.v, y, env)) :
-		       y.t == 4 ? md(y.k, recur(x, y.v, env)) :
-		       x.t == 3 ? kmap(x, function(z) { return recur(z, y, env); }) :
-		       y.t == 3 ? kmap(y, function(z) { return recur(x, z, env); }) : f(x, y, env);
+		return x.t == tLIST && y.t == tLIST ? kzip(x, y, (a,b) => recur(a, b, env)) :
+		       x.t == tDICT ? dict(x.k, recur(x.v, y, env)) :
+		       y.t == tDICT ? dict(y.k, recur(x, y.v, env)) :
+		       x.t == tLIST ? kmap(x, z => recur(z, y, env)) :
+		       y.t == tLIST ? kmap(y, z => recur(x, z, env)) : f(x, y, env);
 	};
 }
 
-function applym(verb, x, env) {
-	if (verb.t == 5) { return call(verb, enlist(x), env); }
-	if (verb.t == 3) { return atx(verb, x, env); }
-	if (verb.t == 9 & verb.r == null) { verb.r=x; var r=run(verb, env); verb.r=null; return r; }
+function applymonad(verb, x, env) {
+	if (verb.t == tFUNC) { return call(verb, enlist(x), env); }
+	if (verb.t == tLIST) { return subscr(verb, x, env); }
+	if (verb.t == tADVERB & verb.r == null) { verb.r=x; var r=run(verb, env); verb.r=null; return r; }
 	if (verb.sticky) {
 		var s=verb.sticky; s.r=x; verb.sticky=null;
 		var r=run(verb, env); verb.sticky=s; s.r=null; return r;
@@ -399,8 +402,8 @@ function applym(verb, x, env) {
 	return applyverb(verb, [x], env);
 }
 
-function applyd(verb, x, y, env) {
-	if (verb.t == 5) { return call(verb, k(3,[x,y]), env); }
+function applydyad(verb, x, y, env) {
+	if (verb.t == tFUNC) { return call(verb, k(tLIST,[x,y]), env); }
 	if (verb.sticky && verb.sticky != verb) {
 		var s=verb.sticky; s.l=x; s.r=y; verb.sticky=null;
 		var r=run(verb, env); verb.sticky=s; s.r=null; s.l=null; return r;
@@ -408,32 +411,34 @@ function applyd(verb, x, y, env) {
 	return applyverb(verb, [x, y], env);
 }
 
+export const sATOMICMONAD = 0, sLISTMONAD = 1,         sATOMICDYAD = 2,   sLISTATOMDYAD = 3, sATOMLISTDYAD = 4,   sLISTLISTDYAD = 5,         sTRIAD = 6, sTETRAD = 7;
+
 var verbs = {
-	//     a          l           a-a         l-a         a-l         l-l         triad    tetrad
-	":" : [ident,     ident,      rident,     rident,     rident,     rident,     null,    null  ],
-	"+" : [flip,      flip,       ad(plus),   ad(plus),   ad(plus),   ad(plus),   null,    null  ],
-	"-" : [am(negate),am(negate), ad(minus),  ad(minus),  ad(minus),  ad(minus),  null,    null  ],
-	"*" : [first,     first,      ad(times),  ad(times),  ad(times),  ad(times),  null,    null  ],
-	"%" : [am(sqrt),  am(sqrt),   ad(divide), ad(divide), ad(divide), ad(divide), null,    null  ],
-	"!" : [iota,      odometer,   mod,        null,       ar(mod),    md,         null,    null  ],
-	"&" : [where,     where,      ad(min),    ad(min),    ad(min),    ad(min),    null,    null  ],
-	"|" : [rev,       rev,        ad(max),    ad(max),    ad(max),    ad(max),    null,    null  ],
-	"<" : [asc,       asc,        ad(less),   ad(less),   ad(less),   ad(less),   null,    null  ],
-	">" : [desc,      desc,       ad(more),   ad(more),   ad(more),   ad(more),   null,    null  ],
-	"=" : [imat,      group,      ad(equal),  ad(equal),  ad(equal),  ad(equal),  null,    null  ],
-	"~" : [am(not),   am(not),    match,      match,      match,      match,      null,    null  ],
-	"," : [enlist,    enlist,     cat,        cat,        cat,        cat,        null,    null  ],
-	"^" : [pisnull,   am(pisnull),ad(fill),   except,     ad(fill),   except,     null,    null  ],
-	"#" : [count,     count,      take,       reshape,    take,       reshape,    null,    null  ],
-	"_" : [am(floor), am(floor),  drop,       ddrop,      drop,       cut,        null,    null  ],
-	"$" : [kfmt,      as(kfmt),   dfmt,       dfmt,       dfmt,       dfmt,       null,    null  ],
-	"?" : [real,      unique,     rnd,        pfind,      rnd,        ar(pfind),  splice,  null  ],
-	"@" : [type,      type,       atx,        atx,        atx,        atx,        amend4,  amend4],
-	"." : [keval,     keval,      call,       call,       call,       call,       dmend3,  dmend4],
-	"'" : [null,      null,       null,       bin,        null,       ar(bin),    null,    null  ],
-	"/" : [null,      null,       null,       null,       pack,       pack,       null,    null  ],
-	"\\": [null,      null,       null,       unpack,     split,      null,       null,    null  ],
-	"':": [null,      null,       null,       null,       kwindow,    null,       null,    null  ],
+	//     a                   l                       a-a                l-a                a-l                  l-l                        triad    tetrad
+	":" : [ident,              ident,                  rident,            rident,            rident,              rident,                    null,    null  ],
+	"+" : [flip,               flip,                   atomicdyad(plus),  atomicdyad(plus),  atomicdyad(plus),    atomicdyad(plus),          null,    null  ],
+	"-" : [atomicmonad(negate),atomicmonad(negate),    atomicdyad(minus), atomicdyad(minus), atomicdyad(minus),   atomicdyad(minus),         null,    null  ],
+	"*" : [first,              first,                  atomicdyad(times), atomicdyad(times), atomicdyad(times),   atomicdyad(times),         null,    null  ],
+	"%" : [atomicmonad(sqrt),  atomicmonad(sqrt),      atomicdyad(divide),atomicdyad(divide),atomicdyad(divide),  atomicdyad(divide),        null,    null  ],
+	"!" : [iota,               odometer,               mod,               null,              rightatomicdyad(mod),dict,                      null,    null  ],
+	"&" : [where,              where,                  atomicdyad(min),   atomicdyad(min),   atomicdyad(min),     atomicdyad(min),           null,    null  ],
+	"|" : [rev,                rev,                    atomicdyad(max),   atomicdyad(max),   atomicdyad(max),     atomicdyad(max),           null,    null  ],
+	"<" : [asc,                asc,                    atomicdyad(less),  atomicdyad(less),  atomicdyad(less),    atomicdyad(less),          null,    null  ],
+	">" : [desc,               desc,                   atomicdyad(more),  atomicdyad(more),  atomicdyad(more),    atomicdyad(more),          null,    null  ],
+	"=" : [identitymat,        group,                  atomicdyad(equal), atomicdyad(equal), atomicdyad(equal),   atomicdyad(equal),         null,    null  ],
+	"~" : [atomicmonad(not),   atomicmonad(not),       match,             match,             match,               match,                     null,    null  ],
+	"," : [enlist,             enlist,                 concat,            concat,            concat,              concat,                    null,    null  ],
+	"^" : [nullish,            atomicmonad(nullish),   atomicdyad(fill),  except,            atomicdyad(fill),    except,                    null,    null  ],
+	"#" : [count,              count,                  take,              reshape,           take,                reshape,                   null,    null  ],
+	"_" : [atomicmonad(floor), atomicmonad(floor),     drop,              dictdrop,          drop,                cut,                       null,    null  ],
+	"$" : [kfmt,               stringatomicmonad(kfmt),dfmt,              dfmt,              dfmt,                dfmt,                      null,    null  ],
+	"?" : [real,               unique,                 rnd,               finde,             rnd,                 rightatomicdyad(finde),    splice,  null  ],
+	"@" : [type,               type,                   subscr,            subscr,            subscr,              subscr,                    amend4,  amend4],
+	"." : [keval,              keval,                  call,              call,              call,                call,                      dmend3,  dmend4],
+	"'" : [null,               null,                   null,              binsearch,         null,                rightatomicdyad(binsearch),null,    null  ],
+	"/" : [null,               null,                   null,              null,              pack,                pack,                      null,    null  ],
+	"\\": [null,               null,                   null,              unpack,            split,               null,                      null,    null  ],
+	"':": [null,               null,                   null,              null,              kwindow,             null,                      null,    null  ],
 };
 
 function applyverb(node, args, env) {
@@ -444,35 +449,35 @@ function applyverb(node, args, env) {
 			a[z]=args[i++];
 		} args = a;
 	}
-	if (node.t == 9) { return applyadverb(node, node.verb, args, env); }
+	if (node.t == tADVERB) { return applyadverb(node, node.verb, args, env); }
 	var left  = args.length == 2 ? args[0] : node.l ? run(node.l, env) : null;
 	var right = args.length == 2 ? args[1] : args[0];
-	if (!right) { return { t:node.t, v:node.v, curry:[left,k(11)] }; }
+	if (!right) { return { t:node.t, v:node.v, curry:[left,k(tNIL)] }; }
 	var r = null; var v = verbs[node.forcemonad ? node.v[0] : node.v];
 	if (!v) {}
 	else if (args.length == 3)            { r = v[6]; }
 	else if (args.length == 4)            { r = v[7]; }
-	else if (!left       && right.t != 3) { r = v[0]; }
-	else if (!left       && right.t == 3) { r = v[1]; }
-	else if (left.t != 3 && right.t != 3) { r = v[2]; }
-	else if (left.t == 3 && right.t != 3) { r = v[3]; }
-	else if (left.t != 3 && right.t == 3) { r = v[4]; }
-	else if (left.t == 3 && right.t == 3) { r = v[5]; }
+	else if (!left       && right.t != tLIST) { r = v[0]; }
+	else if (!left       && right.t == tLIST) { r = v[1]; }
+	else if (left.t != tLIST && right.t != tLIST) { r = v[2]; }
+	else if (left.t == tLIST && right.t != tLIST) { r = v[3]; }
+	else if (left.t != tLIST && right.t == tLIST) { r = v[4]; }
+	else if (left.t == tLIST && right.t == tLIST) { r = v[5]; }
 	if (!r) { throw new Error("invalid arguments to "+node.v); }
 	return (args.length > 2) ? r(args, env) : left ? r(left, right, env) : r(right, env)
 }
 
 function valence(node, env) {
-	if (node.t == 5) {
-		return (node.curry||[]).reduce(function(x,v) { return x-!isnull(v).v; }, node.args.length);
+	if (node.t == tFUNC) {
+		return (node.curry||[]).reduce((x,v) => x-!isnull(v).v, node.args.length);
 	}
-	if (node.t == 7) { return valence(env.lookup(ks(node.v))); }
-	if (node.t == 9 && node.v == "'") { return valence(node.verb, env); }
-	if (node.t == 9)       { return 1; }
-	if (node.t != 8)       { return 0; }
+	if (node.t == tREF) { return valence(env.lookup(sym(node.v))); }
+	if (node.t == tADVERB && node.v == "'") { return valence(node.verb, env); }
+	if (node.t == tADVERB)       { return 1; }
+	if (node.t != tVERB)       { return 0; }
 	if (node.forcemonad)   { return 1; }
 	if (node.v in natives) { return 1; }
-	return (node.sticky && (node.sticky.t==9 || node.sticky.forcemonad || node.sticky.l)) ? 1 : 2;
+	return (node.sticky && (node.sticky.t==tADVERB || node.sticky.forcemonad || node.sticky.l)) ? 1 : 2;
 }
 
 var adverbs = {
@@ -486,11 +491,11 @@ var adverbs = {
 };
 
 function applyadverb(node, verb, args, env) {
-	if (verb.t == 7) { verb = run(verb, env); }
+	if (verb.t == tREF) { verb = run(verb, env); }
 	var r = null; var v = valence(verb, env);
 	if (v > 2)                 { return adverbs[node.v][4](verb, args, env); }
-	if (v == 0 && verb.t != 5) { return applyverb(k(8,node.v), [verb, args[1]], env); }
-	if (v == 0 && verb.t == 5) { v = 1; }
+	if (v == 0 && verb.t != tFUNC) { return applyverb(k(tVERB,node.v), [verb, args[1]], env); }
+	if (v == 0 && verb.t == tFUNC) { v = 1; }
 	if (v == 2 && !args[1])    { args = [null, args[0]]; }
 	if (v == 1 && !args[0])    { r = adverbs[node.v][0]; }
 	if (v == 2 && !args[0])    { r = adverbs[node.v][1]; }
@@ -502,56 +507,58 @@ function applyadverb(node, verb, args, env) {
 	return args[0] ? r(verb, args[0], args[1], env) : r(verb, args[1], env);
 }
 
-function Environment(pred) {
-	this.p = pred; this.d = md(k(3,[]), k(3,[]));
-	this.put = function(n, g, v) {
-		if (typeof n == "string") { n = ks(n); }
-		if (g && this.p) { this.p.put(n, g, v); } else { dset(this.d, n, v); }
-	};
-	this.contains = function(x) { return find(this.d.k, x).v != len(this.d.k); }
-	this.lookup = function(n, g) {
-		if (g && this.p) { return this.p.lookup(n, g); }
-		if (!this.contains(n)) {
-			if (!this.p) { throw new Error("the name '"+n.v+"' has not been defined."); }
-			return this.p.lookup(n);
-		}
-		var view = dget(this.d, n);
-		if (view.t == 6) {
-			var dirty = view.cache == 0, env = this;
-			Object.keys(view.depends).forEach(function(z) {
-				var n = (z == view.v) ? view.cache : env.lookup(ks(z)), o = view.depends[z];
-				if (!o || !match(n,o).v) { dirty=1; view.depends[z]=n; }
-			})
-			if (dirty) { view.cache = run(view.r, this); } return view.cache;
-		}
-		return view;
-	};
+export class Environment {
+    constructor(pred) {
+        this.p = pred; this.d = dict(k(tLIST, []), k(tLIST, []));
+    }
+    put (n, g, v) {
+        if (typeof n == "string") { n = sym(n); }
+        if (g && this.p) { this.p.put(n, g, v); } else { dset(this.d, n, v); }
+    }
+    contains(x) { return findm(this.d.k, x).v != len(this.d.k); }
+    lookup(n, g) {
+        if (g && this.p) { return this.p.lookup(n, g); }
+        if (!this.contains(n)) {
+            if (!this.p) { throw new Error("the name '" + n.v + "' has not been defined."); }
+            return this.p.lookup(n);
+        }
+        var view = dget(this.d, n);
+        if (view.t == tVIEW) {
+            var dirty = view.cache == 0, env = this;
+            Object.keys(view.depends).forEach(z => {
+                var n = (z == view.v) ? view.cache : env.lookup(sym(z)), o = view.depends[z];
+                if (!o || !match(n, o).v) { dirty = 1; view.depends[z] = n; }
+            });
+            if (dirty) { view.cache = run(view.r, this); } return view.cache;
+        }
+        return view;
+    }
 }
 
-function atx(x, y, env) {
-	return x.t == 2 ? atx(env.lookup(x), y, env) : y.t == 11 ? x :
-	       x.t == 3 && y.t == 4 ? md(y.k, atx(x, y.v, env)) :
-	       x.t == 8 || x.t == 9 ? applym(x, y, env) :
-	       (x.t == 3 || x.t == 4) && y.t == 3 ? kmap(y, function(z) { return atx(x, z); }) :
-	       x.t == 3 ? (y.t > 1 || y.v < 0 || y.v >= len(x) || y.v%1 != 0) ? NA : x.v[y.v] :
-	       x.t == 4 ? dget(x, y) : call(x, enlist(y), env)
+function subscr(x, y, env) {
+	return x.t == tSYMBOL ? subscr(env.lookup(x), y, env) : y.t == tNIL ? x :
+	       x.t == tLIST && y.t == tDICT ? dict(y.k, subscr(x, y.v, env)) :
+	       x.t == tVERB || x.t == tADVERB ? applymonad(x, y, env) :
+	       (x.t == tLIST || x.t == tDICT) && y.t == tLIST ? kmap(y, z => subscr(x, z)) :
+	       x.t == tLIST ? (y.t > 1 || y.v < 0 || y.v >= len(x) || y.v%1 != 0) ? NA : x.v[y.v] :
+	       x.t == tDICT ? dget(x, y) : call(x, enlist(y), env)
 }
 
 function atdepth(x, y, i, env) {
-	if (i >= len(y)) { return x; }; var c = y.v[i]; var k = atx(x, c, env);
-	return (c.t != 11 && c.t != 3) ?    atdepth(k, y, i+1, env) :
-		   kmap(k, function(t) { return atdepth(t, y, i+1, env) })
+	if (i >= len(y)) { return x; }; var c = y.v[i]; var k = subscr(x, c, env);
+	return (c.t != tNIL && c.t != tLIST) ?    atdepth(k, y, i+1, env) :
+		   kmap(k, t => atdepth(t, y, i+1, env))
 }
 
 function call(x, y, env) {
-	if (x.sticky) { return (valence(x.sticky, env)==1?applym:applyd)(x, y.v[0], y.v[1], env); }
-	if (x.t == 2) { return call(env.lookup(x), y, env); }
-	if (x.t == 3 || x.t == 4) { return y.t == 3 ? atdepth(x, y, 0, env) : atx(x, y, env); }
-	if (x.t == 8) { return applyverb(x, y.t == 3 ? y.v : [y], env); }
-	if (x.t == 9) { return applyadverb(x, run(x.verb, env), y.v, env); }
-	if (x.t != 5) { throw new Error("function or list expected, found " + TN[x.t]+'.'); }
-	if (y.t == 4) { var e=new Environment(null); e.d=y; x.env=e; return x; }
-	if (y.t != 3) { y = enlist(y); }
+	if (x.sticky) { return (valence(x.sticky, env)==1?applymonad:applydyad)(x, y.v[0], y.v[1], env); }
+	if (x.t == tSYMBOL) { return call(env.lookup(x), y, env); }
+	if (x.t == tLIST || x.t == tDICT) { return y.t == tLIST ? atdepth(x, y, 0, env) : subscr(x, y, env); }
+	if (x.t == tVERB) { return applyverb(x, y.t == tLIST ? y.v : [y], env); }
+	if (x.t == tADVERB) { return applyadverb(x, run(x.verb, env), y.v, env); }
+	if (x.t != tFUNC) { throw new Error("function or list expected, found " + TN[x.t]+'.'); }
+	if (y.t == tDICT) { var e=new Environment(null); e.d=y; x.env=e; return x; }
+	if (y.t != tLIST) { y = enlist(y); }
 	var environment = new Environment(x.env); var curry = x.curry?x.curry.concat([]):[];
 	if (x.args.length != 0 || len(y) != 1 || !isnull(y.v[0]).v) {
 		var all=true; var i=0; for(var z=0;z<x.args.length;z++) {
@@ -560,87 +567,87 @@ function call(x, y, env) {
 			if (y.v[i] == null || isnull(y.v[i]).v) { all=false; }
 			curry[z]=y.v[i++];
 		}
-		if (!all) { return { t:5, v:x.v, args:x.args, env:x.env, curry:curry }; }
+		if (!all) { return { t:tFUNC, v:x.v, args:x.args, env:x.env, curry:curry }; }
 		if (i < len(y) && x.args.length != 0) { throw new Error("valence error."); }
-		for(var z=0;z<x.args.length;z++) { environment.put(ks(x.args[z]), false, curry[z]); }
+		for(var z=0;z<x.args.length;z++) { environment.put(sym(x.args[z]), false, curry[z]); }
 	}
-	environment.put(ks("o"), false, x); return run(x.v, environment);
+	environment.put(sym("o"), false, x); return run(x.v, environment);
 }
 
-function run(node, env) {
-	if (node instanceof Array) { return node.reduce(function(_,x) { return run(x, env); }, null); }
+export function run(node, env) {
+	if (node instanceof Array) { return node.reduce((_,x) => run(x, env), null); }
 	if (node.sticky) { return node; }
-	if (node.t == 3) { return rev(kmap(rev(node), function(v) { return run(v, env); })); }
-	if (node.t == 4) { return md(node.k, kmap(node.v, function(x) { return run(x, env); })); }
-	if (node.t == 5) {
-		if (node.r) { return atx(node, run(node.r, env), env); }
-		if (!node.env) { return { t:5, v:node.v, args:node.args, curry:node.curry, env:env }; }
+	if (node.t == tLIST) { return rev(kmap(rev(node), v => run(v, env))); }
+	if (node.t == tDICT) { return dict(node.k, kmap(node.v, x => run(x, env))); }
+	if (node.t == tFUNC) {
+		if (node.r) { return subscr(node, run(node.r, env), env); }
+		if (!node.env) { return { t:tFUNC, v:node.v, args:node.args, curry:node.curry, env:env }; }
 	}
-	if (node.t == 6) { env.put(ks(node.v), false, node); return node; }
-	if (node.t == 7) {
-		if (node.r) { env.put(ks(node.v), node.global, run(node.r, env)); }
-		return env.lookup(ks(node.v));
+	if (node.t == tVIEW) { env.put(sym(node.v), false, node); return node; }
+	if (node.t == tREF) {
+		if (node.r) { env.put(sym(node.v), node.global, run(node.r, env)); }
+		return env.lookup(sym(node.v));
 	}
-	if (node.t == 8 && node.curry && !node.r) { return applyverb(node, [], env); }
-	if (node.t == 8 && node.r) {
+	if (node.t == tVERB && node.curry && !node.r) { return applyverb(node, [], env); }
+	if (node.t == tVERB && node.r) {
 		var right = run(node.r, env);
 		var left  = node.l ? run(node.l, env) : null;
 		return applyverb(node, [left, right], env);
 	}
-	if (node.t == 9 && node.r) {
+	if (node.t == tADVERB && node.r) {
 		var right = run(node.r, env);
 		var verb  = run(node.verb, env);
 		var left  = node.l ? run(node.l, env) : null;
 		return applyadverb(node, verb, [left, right], env);
 	}
-	if (node.t == 12) {
+	if (node.t == tCOND) {
 		for(var z=0;z<node.v.length-1;z+=2) {
 			if (!kf(run(node.v[z], env))) { return run(node.v[z+1], env); }
 		} return run(node.v[node.v.length-1], env);
 	}
-	if (node.t == 13) { return run(node.v, env); }
+	if (node.t == tQUOTE) { return run(node.v, env); }
 	return node;
 }
 
 function amend4(args, env) { return mend(args, env, amendm, amendd); }
-function dmend3(args, env) { return args[0].t != 3 ? trap(args, env) : dmend4(args, env); }
+function dmend3(args, env) { return args[0].t != tLIST ? trap(args, env) : dmend4(args, env); }
 function dmend4(args, env) { return mend(args, env, dmend, dmend); }
 
 function mend(args, env, monadic, dyadic) {
-	var ds = dc(args[0]), i = args[1], f = args[2], y = args[3];
-	(y?dyadic:monadic)(ds.t == 2 ? env.lookup(ds,true) : ds, i, y, f, env); return ds;
+	var ds = deepclone(args[0]), i = args[1], f = args[2], y = args[3];
+	(y?dyadic:monadic)(ds.t == tSYMBOL ? env.lookup(ds,true) : ds, i, y, f, env); return ds;
 }
 
 function amendm(d, i, y, monad, env) {
-	if (monad.t == 0) { monad = { t:5,args:["x"],v:[{ t:0, v:monad.v }] }; }
-	if (i.t != 3) { lset(d, i, applym(monad, atx(d, i, env), env)); }
-	else { kmap(i, function(v) { amendm(d, v, y, monad, env); }); }
+	if (monad.t == tNUMBER) { monad = { t:tFUNC,args:["x"],v:[{ t:tNUMBER, v:monad.v }] }; }
+	if (i.t != tLIST) { lset(d, i, applymonad(monad, subscr(d, i, env), env)); }
+	else { kmap(i, v => { amendm(d, v, y, monad, env); }); }
 }
 
 function amendd(d, i, y, dyad, env) {
-	if (i.t == 3) { kmap(i, function(iv, z) { amendd(d, iv, y.t == 3 ? y.v[z] : y, dyad, env) }); }
-	else { (d.t == 4 ? dset : lset)(d, i, applyd(dyad, atx(d, i, env), y, env)); }
+	if (i.t == tLIST) { kmap(i, (iv, z) => { amendd(d, iv, y.t == tLIST ? y.v[z] : y, dyad, env) }); }
+	else { (d.t == tDICT ? dset : lset)(d, i, applydyad(dyad, subscr(d, i, env), y, env)); }
 }
 
 function dmend(d, i, y, f, env) {
-	if (i.t != 3) { (y?amendd:amendm)(d, i, y, f, env); return; }
+	if (i.t != tLIST) { (y?amendd:amendm)(d, i, y, f, env); return; }
 	if (len(i) == 1) { dmend(d, i.v[0], y, f, env); return; }
 	var rest = drop(k1,i,env); if (len(i)<1) { return; }
-	if (i.v[0].t == 3) {
-		if (y && y.t == 3) { kzip(i, y, function(a, b) { amendd(d, a, b, f, env); }); return; }
-		kmap(i.v[0],function(x) { dmend(atx(d,x,env), rest, y, f, env); });
+	if (i.v[0].t == tLIST) {
+		if (y && y.t == tLIST) { kzip(i, y, (a, b) => { amendd(d, a, b, f, env); }); return; }
+		kmap(i.v[0],x => { dmend(subscr(d,x,env), rest, y, f, env); });
 	}
-	else if (isnull(i.v[0]).v) { kmap(d,function(x,i) { dmend(atx(d,k(0,i),env),rest,y,f,env); }); }
-	else if (d.t == 3 && d.v[0].t != 3) { (y?amendd:amendm)(d, i, y, f, env); }
+	else if (isnull(i.v[0]).v) { kmap(d,(x,i) => { dmend(subscr(d,k(tNUMBER,i),env),rest,y,f,env); }); }
+	else if (d.t == tLIST && d.v[0].t != tLIST) { (y?amendd:amendm)(d, i, y, f, env); }
 	else {
-		var di=atx(d, first(i), env);
-		if(di.t!=3) { (y?amendd:amendm)(d, i, y, f, env); return }
+		var di=subscr(d, first(i), env);
+		if(di.t!=tLIST) { (y?amendd:amendm)(d, i, y, f, env); return }
 		dmend(di, rest, y, f, env);
 	}
 }
 
 function trap(args, env) {
-	try { return k(3,[k0,call(args[0],l(args[1]))]) } catch(e) { return k(3,[k1,stok(e.message)]) }
+	try { return k(tLIST,[k0,call(args[0],enslist(args[1]))]) } catch(e) { return k(tLIST,[k1,strtokval(e.message)]) }
 }
 
 ////////////////////////////////////
@@ -649,50 +656,50 @@ function trap(args, env) {
 //
 ////////////////////////////////////
 
-var NUMBER  = /^(-?0w|0N|-?\d+\.\d*|-?\d*\.?\d+)/;
-var HEXLIT  = /^0x[a-zA-Z\d]+/;
-var BOOL    = /^[01]+b/;
-var NAME    = /^[a-z][a-z\d]*/i;
-var SYMBOL  = /^`([a-z.][a-z0-9.]*)?/i;
-var STRING  = /^"(\\.|[^"\\\r\n])*"/;
-var VERB    = /^[+\-*%!&|<>=~,^#_$?@.:]/;
-var ASSIGN  = /^[+\-*%!&|<>=~,^#_$?@.]:/;
-var IOVERB  = /^\d:/;
-var ADVERB  = /^['\\\/]:?/;
-var SEMI    = /^;/;
-var COLON   = /^:/;
-var VIEW    = /^::/;
-var COND    = /^\$\[/;
-var DICT    = /^\[[a-z]+:/i;
-var OPEN_B  = /^\[/;
-var OPEN_P  = /^\(/;
-var OPEN_C  = /^{/;
-var CLOSE_B = /^\]/;
-var CLOSE_P = /^\)/;
-var CLOSE_C = /^}/;
+var rNUMBER  = /^(-?0w|0N|-?\d+\.\d*|-?\d*\.?\d+)/;
+var rHEXLIT  = /^0x[a-zA-Z\d]+/;
+var rBOOL    = /^[01]+b/;
+var rNAME    = /^[a-z][a-z\d]*/i;
+var rSYMBOL  = /^`([a-z.][a-z0-9.]*)?/i;
+var rSTRING  = /^"(\\.|[^"\\\r\n])*"/;
+var rVERB    = /^[+\-*%!&|<>=~,^#_$?@.:]/;
+var rASSIGN  = /^[+\-*%!&|<>=~,^#_$?@.]:/;
+var rIOVERB  = /^\d:/;
+var rADVERB  = /^['\\\/]:?/;
+var rSEMI    = /^;/;
+var rCOLON   = /^:/;
+var rVIEW    = /^::/;
+var rCOND    = /^\$\[/;
+var rDICT    = /^\[[a-z]+:/i;
+var rOPEN_B  = /^\[/;
+var rOPEN_P  = /^\(/;
+var rOPEN_C  = /^{/;
+var rCLOSE_B = /^\]/;
+var rCLOSE_P = /^\)/;
+var rCLOSE_C = /^}/;
 
 var des = {};
-des[NUMBER ]="number";des[NAME   ]="name"   ;des[SYMBOL ]="symbol";des[STRING]="string";
-des[VERB   ]="verb"  ;des[IOVERB ]="IO verb";des[ADVERB ]="adverb";des[SEMI  ]="';'";
-des[COLON  ]="':'"   ;des[VIEW   ]="view"   ;des[COND   ]="'$['"  ;
-des[OPEN_B ]="'['"   ;des[OPEN_P ]="'('"    ;des[OPEN_C ]="'{'"   ;des[ASSIGN]="assignment";
-des[CLOSE_B]="']'"   ;des[CLOSE_P]="')'"    ;des[CLOSE_C]="'}'";
+des[rNUMBER ]="number";des[rNAME   ]="name"   ;des[rSYMBOL ]="symbol";des[rSTRING]="string";
+des[rVERB   ]="verb"  ;des[rIOVERB ]="IO verb";des[rADVERB ]="adverb";des[rSEMI  ]="';'";
+des[rCOLON  ]="':'"   ;des[rVIEW   ]="view"   ;des[rCOND   ]="'$['"  ;
+des[rOPEN_B ]="'['"   ;des[rOPEN_P ]="'('"    ;des[rOPEN_C ]="'{'"   ;des[rASSIGN]="assignment";
+des[rCLOSE_B]="']'"   ;des[rCLOSE_P]="')'"    ;des[rCLOSE_C]="'}'";
 
 var text = "";
 var funcdepth = 0;
 function begin(str) {
-	str = str.replace(/("(?:[^"\\\n]|\\.)*")|(\s\/.*)|([a-z\d\]\)]-(?=\.?\d))/gi,function(_,x,y,z) {
+	str = str.replace(/("(?:[^"\\\n]|\\.)*")|(\s\/.*)|([a-z\d\]\)]-(?=\.?\d))/gi,(_,x,y,z) => {
 		// preserve a string (x), remove a comment (y), disambiguate a minus sign (z)
 		return x ? x : y ? "" : z.replace('-', '- ')
 	})
 	text = str.trim().replace(/\n/g, ";"); funcdepth = 0;
 }
-function done()         { return text.length < 1; }
+export function done()  { return text.length < 1; }
 function at(regex)      { return regex.test(text); }
 function matches(regex) { return at(regex) ? expect(regex) : false; }
 function expect(regex) {
 	var found = regex.exec(text);
-	if (regex == OPEN_C) { funcdepth++; } if (regex == CLOSE_C) { funcdepth--; }
+	if (regex == rOPEN_C) { funcdepth++; } if (regex == rCLOSE_C) { funcdepth--; }
 	if (found == null) { throw new Error("parse error. "+des[regex]+" expected."); }
 	text = text.substring(found[0].length).trim(); return found[0];
 }
@@ -705,55 +712,55 @@ function expect(regex) {
 
 function findNames(node, names) {
 	if (node == null)          { return names; }
-	if (node instanceof Array) { node.forEach(function(v) { findNames(v, names); }); return names; }
-	if (node.t == 7)           { names[node.v] = 0; }
-	if (node.t != 5)           { findNames(node.v, names); }
+	if (node instanceof Array) { node.forEach(v => { findNames(v, names); }); return names; }
+	if (node.t == tREF)           { names[node.v] = 0; }
+	if (node.t != tFUNC)           { findNames(node.v, names); }
 	return findNames([node.l, node.r, node.verb, node.curry], names);
 }
 
 function atNoun() {
-	return !done()&&at(NUMBER)||at(NAME)||at(SYMBOL)||at(STRING)||at(COND)||at(OPEN_P)||at(OPEN_C);
+	return !done()&&at(rNUMBER)||at(rNAME)||at(rSYMBOL)||at(rSTRING)||at(rCOND)||at(rOPEN_P)||at(rOPEN_C);
 }
 
 function indexedassign(node, indexer) {
-	var op = { t:5, args:["x","y"], v:[{ t:7, v:"y" }] }; // {y}
-	var gl = matches(COLON);
+	var op = { t:tFUNC, args:["x","y"], v:[{ t:tREF, v:"y" }] }; // {y}
+	var gl = matches(rCOLON);
 	var ex = parseEx(parseNoun());
 	//t[x]::z  ->  ..[`t;x;{y};z]   t[x]:z  ->  t:.[t;x;{y};z]
-	if (!gl) { node.r = { t:8, v:".", curry:[ k(7,node.v), k(3,indexer), op, ex] }; return node; }
-	return { t:8, v:".", r:{ t:8, v:".", curry:[ks(node.v), k(3,indexer), op, ex] }};
+	if (!gl) { node.r = { t:tVERB, v:".", curry:[ k(tREF,node.v), k(tLIST,indexer), op, ex] }; return node; }
+	return { t:tVERB, v:".", r:{ t:tVERB, v:".", curry:[sym(node.v), k(tLIST,indexer), op, ex] }};
 }
 
 function compoundassign(node, indexer) {
-	if (!at(ASSIGN)) { return node; }
-	var op = expect(ASSIGN).slice(0,1); var gl = matches(COLON); var ex = parseEx(parseNoun());
+	if (!at(rASSIGN)) { return node; }
+	var op = expect(rASSIGN).slice(0,1); var gl = matches(rCOLON); var ex = parseEx(parseNoun());
 	if (!indexer) {
 		// t+::z  -> t::(.`t)+z
-		var v = gl ? asVerb(".", null, ks(node.v)) : node;
+		var v = gl ? asVerb(".", null, sym(node.v)) : node;
 		return { t:node.t, v:node.v, global:gl, r:asVerb(op, v, ex) };
 	}
 	// t[x]+::z -> ..[`t;x;+:;z]   t[x]+:z -> t:.[t;x;{y};z]
-	if (!gl) { node.r={ t:8, v:".", curry:[ k(7,node.v),k(3,indexer),asVerb(op),ex] }; return node; }
-	return asVerb(".", null, { t:8, v:".", curry:[ks(node.v), indexer, asVerb(op), ex] });
+	if (!gl) { node.r={ t:tVERB, v:".", curry:[ k(tREF,node.v),k(tLIST,indexer),asVerb(op),ex] }; return node; }
+	return asVerb(".", null, { t:tVERB, v:".", curry:[sym(node.v), indexer, asVerb(op), ex] });
 }
 
 function applycallright(node) {
-	while (matches(OPEN_B)) {
-		var args = parseList(CLOSE_B); node = asVerb(".", node, k(3, args.length ? args : [NIL]));
+	while (matches(rOPEN_B)) {
+		var args = parseList(rCLOSE_B); node = asVerb(".", node, k(tLIST, args.length ? args : [NIL]));
 	} return node;
 }
 
 function applyindexright(node) {
-	if (node.sticky && at(VERB)) {
+	if (node.sticky && at(rVERB)) {
 		var x = parseNoun(); x.l = node; x.r = parseEx(parseNoun()); return x;
 	}
-	while (matches(OPEN_B)) { node = asVerb(".", node, k(3, parseList(CLOSE_B))); }
+	while (matches(rOPEN_B)) { node = asVerb(".", node, k(tLIST, parseList(rCLOSE_B))); }
 	return node;
 }
 
 function findSticky(root) {
-	var n = root; if (n == null || (n.t == 9 && n.r == null)) { return; }
-	while(n.t == 8 && !n.curry || n.t == 9) {
+	var n = root; if (n == null || (n.t == tADVERB && n.r == null)) { return; }
+	while(n.t == tVERB && !n.curry || n.t == tADVERB) {
 		if (n.r == null) { root.sticky = n; return; } n = n.r;
 	}
 }
@@ -761,50 +768,50 @@ function findSticky(root) {
 function parseList(terminal, cull) {
 	var r=[]; do {
 		if (terminal && at(terminal)) { break; }
-		while(matches(SEMI)) { if (!cull) { r.push(k(11)); } }
+		while(matches(rSEMI)) { if (!cull) { r.push(k(tNIL)); } }
 		var e = parseEx(parseNoun()); findSticky(e);
 		if (e != null) { r.push(e); }
-		else if (!cull) { r.push(k(11)); }
-	} while(matches(SEMI)); if (terminal) { expect(terminal); } return r;
+		else if (!cull) { r.push(k(tNIL)); }
+	} while(matches(rSEMI)); if (terminal) { expect(terminal); } return r;
 }
 
 function parseNoun() {
-	if (at(IOVERB)) { return k(8, expect(IOVERB)); }
-	if (at(BOOL)) {
-		var n = expect(BOOL); var r=[];
-		for(var z=0;z<n.length-1;z++) { r.push(k(0, parseInt(n[z]))); }
-		return applyindexright(k(3, r));
+	if (at(rIOVERB)) { return k(tVERB, expect(rIOVERB)); }
+	if (at(rBOOL)) {
+		var n = expect(rBOOL); var r=[];
+		for(var z=0;z<n.length-1;z++) { r.push(k(tNUMBER, parseInt(n[z]))); }
+		return applyindexright(k(tLIST, r));
 	}
-	if (at(HEXLIT)) {
-		var h=expect(HEXLIT); if (h.length%2) { throw new Error("malformed byte string."); }
-		var r=krange(h.length/2-1, function(z) { return k(1,parseInt(h.slice(2*z+2,2*z+4),16)); });
+	if (at(rHEXLIT)) {
+		var h=expect(rHEXLIT); if (h.length%2) { throw new Error("malformed byte string."); }
+		var r=krange(h.length/2-1, z => k(tCHAR,parseInt(h.slice(2*z+2,2*z+4),16)));
 		return (r.v.length == 1) ? first(r) : r;
 	}
-	if (at(NUMBER)) {
-		var r=[]; while(at(NUMBER)) {
-			var n=expect(NUMBER); r.push(k(0, n=="0w"?1/0:n=="-0w"?-1/0:n=="0N"?NaN:parseFloat(n)));
-		} return applyindexright(kl(r));
+	if (at(rNUMBER)) {
+		var r=[]; while(at(rNUMBER)) {
+			var n=expect(rNUMBER); r.push(k(tNUMBER, n=="0w"?1/0:n=="-0w"?-1/0:n=="0N"?NaN:parseFloat(n)));
+		} return applyindexright(wlist(r));
 	}
-	if (at(SYMBOL)) {
-		var r=[]; while(at(SYMBOL)) { r.push(k(2, expect(SYMBOL).slice(1))); }
-		return applyindexright(kl(r));
+	if (at(rSYMBOL)) {
+		var r=[]; while(at(rSYMBOL)) { r.push(k(tSYMBOL, expect(rSYMBOL).slice(1))); }
+		return applyindexright(wlist(r));
 	}
-	if (at(STRING)) {
-		var str = expect(STRING); str = str.substring(1, str.length-1);
-		for(var z=0;z<EC.length;z++) { str=str.split(EC[z][1]).join(EC[z][0]); }
-		return applyindexright(stok(str));
+	if (at(rSTRING)) {
+		var str = expect(rSTRING); str = str.substring(1, str.length-1);
+		for(var z=0;z<ESCAPE_PAIRS.length;z++) { str=str.split(ESCAPE_PAIRS[z][1]).join(ESCAPE_PAIRS[z][0]); }
+		return applyindexright(strtokval(str));
 	}
-	if (matches(OPEN_B)) {
-		var m=md(k(3,[]), k(3,[])); if (!matches(CLOSE_B)) { do {
-			var key = ks(expect(NAME)); expect(COLON);
-			dset(m, key, matches(COLON) ? dget(m, ks(expect(NAME))) : parseEx(parseNoun()));
-		} while(matches(SEMI)); expect(CLOSE_B); } return applyindexright(m);
+	if (matches(rOPEN_B)) {
+		var m=dict(k(tLIST,[]), k(tLIST,[])); if (!matches(rCLOSE_B)) { do {
+			var key = sym(expect(rNAME)); expect(rCOLON);
+			dset(m, key, matches(rCOLON) ? dget(m, sym(expect(rNAME))) : parseEx(parseNoun()));
+		} while(matches(rSEMI)); expect(rCLOSE_B); } return applyindexright(m);
 	}
-	if (matches(OPEN_C)) {
-		var args=[]; if (matches(OPEN_B)) {
-			do { args.push(expect(NAME)); } while(matches(SEMI)); expect(CLOSE_B);
+	if (matches(rOPEN_C)) {
+		var args=[]; if (matches(rOPEN_B)) {
+			do { args.push(expect(rNAME)); } while(matches(rSEMI)); expect(rCLOSE_B);
 		}
-		var r = k(5, parseList(CLOSE_C, true));
+		var r = k(tFUNC, parseList(rCLOSE_C, true));
 		if (args.length == 0) {
 			var names = findNames(r.v, {});
 			if      ("z" in names) { args = ["x","y","z"]; }
@@ -813,38 +820,38 @@ function parseNoun() {
 		}
 		r.args = args; return applycallright(r);
 	}
-	if (matches(OPEN_P)) { return applyindexright(kl(parseList(CLOSE_P))); }
-	if (matches(COND))   { return k(12, parseList(CLOSE_B, true)); }
-	if (at(VERB)) {
-		var r = k(8, expect(VERB));
-		if (matches(COLON)) { r.v += ":"; r.forcemonad = true; }
-		if (at(OPEN_B) && !at(DICT)) {
-			expect(OPEN_B); r.curry = parseList(CLOSE_B, false);
-			if (r.curry.length < 2 && !r.forcemonad) { r.curry.push(k(11)); }
+	if (matches(rOPEN_P)) { return applyindexright(wlist(parseList(rCLOSE_P))); }
+	if (matches(rCOND))   { return k(tCOND, parseList(rCLOSE_B, true)); }
+	if (at(rVERB)) {
+		var r = k(tVERB, expect(rVERB));
+		if (matches(rCOLON)) { r.v += ":"; r.forcemonad = true; }
+		if (at(rOPEN_B) && !at(rDICT)) {
+			expect(rOPEN_B); r.curry = parseList(rCLOSE_B, false);
+			if (r.curry.length < 2 && !r.forcemonad) { r.curry.push(k(tNIL)); }
 		} return r;
 	}
-	if (at(NAME)) {
-		var n = k(7, expect(NAME));
-		if (n.v in natives) { return applycallright(k(8, n.v)); }
-		if (funcdepth == 0 && matches(VIEW)) {
-			var r = k(6, n.v);
+	if (at(rNAME)) {
+		var n = k(tREF, expect(rNAME));
+		if (n.v in natives) { return applycallright(k(tVERB, n.v)); }
+		if (funcdepth == 0 && matches(rVIEW)) {
+			var r = k(tVIEW, n.v);
 			r.r = parseEx(parseNoun());
 			r.depends = findNames(r.r, {});
-			r.cache = k(11);
+			r.cache = k(tNIL);
 			return r;
 		}
-		if (matches(COLON)) {
-			n.global = matches(COLON); n.r = parseEx(parseNoun());
+		if (matches(rCOLON)) {
+			n.global = matches(rCOLON); n.r = parseEx(parseNoun());
 			if (n.r == null) { throw new Error("noun expected following ':'."); }
 			findSticky(n.r); if (n.r == n.r.sticky) { n.r.sticky = null; }
 			return n;
 		}
-		if (matches(OPEN_B)) {
-			var index = parseList(CLOSE_B);
-			if (at(ASSIGN)) { return compoundassign(n, index); }
-			if (matches(COLON)) { return indexedassign(n, index); }
+		if (matches(rOPEN_B)) {
+			var index = parseList(rCLOSE_B);
+			if (at(rASSIGN)) { return compoundassign(n, index); }
+			if (matches(rCOLON)) { return indexedassign(n, index); }
 			if (index.length == 0) { index = [NIL]; }
-			n = asVerb(".", n, k(3, index));
+			n = asVerb(".", n, k(tLIST, index));
 		}
 		return applycallright(compoundassign(n, null));
 	}
@@ -852,36 +859,36 @@ function parseNoun() {
 }
 
 function parseAdverb(left, verb) {
-	var a = expect(ADVERB);
-	while(at(ADVERB)) { var b = expect(ADVERB); verb = { t:9, v:a, verb:verb }; a = b; }
-	if (at(OPEN_B)) { return applycallright({ t:9, v:a, verb:verb, l:left }); }
-	return { t:9, v:a, verb:verb, l:left, r:parseEx(parseNoun()) };
+	var a = expect(rADVERB);
+	while(at(rADVERB)) { var b = expect(rADVERB); verb = { t:tADVERB, v:a, verb:verb }; a = b; }
+	if (at(rOPEN_B)) { return applycallright({ t:tADVERB, v:a, verb:verb, l:left }); }
+	return { t:tADVERB, v:a, verb:verb, l:left, r:parseEx(parseNoun()) };
 }
 
 function parseEx(node) {
 	if (node == null) { return null; }
-	if (at(ADVERB)) { return parseAdverb(null, node); }
-	if (node.t == 8 && !node.r) {
-		var p = at(OPEN_P); var x = parseNoun();
-		if (at(ADVERB) && valence(node) == 1) return parseAdverb(node, x)
-		node.r = parseEx((p && x.t == 8) ? k(13, x) : x); node.sticky = null;
+	if (at(rADVERB)) { return parseAdverb(null, node); }
+	if (node.t == tVERB && !node.r) {
+		var p = at(rOPEN_P); var x = parseNoun();
+		if (at(rADVERB) && valence(node) == 1) return parseAdverb(node, x)
+		node.r = parseEx((p && x.t == tVERB) ? k(tQUOTE, x) : x); node.sticky = null;
 	}
-	if (atNoun() && !at(IOVERB)) {
+	if (atNoun() && !at(rIOVERB)) {
 		var x = parseNoun();
-		if (x.t == 7 && x.v in infix) { return asVerb(".", x, k(3, [node, parseEx(parseNoun())])); }
-		if (at(ADVERB)) { return parseAdverb(node, x); }
+		if (x.t == tREF && x.v in infix) { return asVerb(".", x, k(tLIST, [node, parseEx(parseNoun())])); }
+		if (at(rADVERB)) { return parseAdverb(node, x); }
 		return asVerb("@", node, parseEx(x));
 	}
-	if (at(VERB) || at(IOVERB)) {
+	if (at(rVERB) || at(rIOVERB)) {
 		var x = parseNoun();
 		if (x.forcemonad) { node.r = parseEx(x); return node; }
-		if (at(ADVERB)) { return parseAdverb(node, x); }
+		if (at(rADVERB)) { return parseAdverb(node, x); }
 		x.l = node; x.r = parseEx(parseNoun()); node = x;
 	}
 	return node;
 }
 
-function parse(str) {
+export function parse(str) {
 	begin(" "+str); var r = parseList(null, false); if (done()) { return r; }
 	throw new Error("unexpected character '"+text[0]+"'");
 }
@@ -892,59 +899,59 @@ function parse(str) {
 //
 ////////////////////////////////////
 
-function format(k, indent, symbol) {
+export function format(k, indent, symbol) {
 	if (typeof indent == "number") { indent = ""; } if (k == null) { return ""; }
 	function indented(k) { return format(k, indent+" "); };
 	if (k instanceof Array) { return k.map(format).join(";"); }
 	if (k.sticky) { var s=k.sticky; k.sticky=null; var r=format(k); k.sticky=s; return "("+r+")"; }
-	if (k.t == 0) {
-		return k.v==1/0?"0w":k.v==-1/0?"-0w":na(k)?"0N":
+	if (k.t == tNUMBER) {
+		return k.v==1/0?"0w":k.v==-1/0?"-0w":nanp(k)?"0N":
 		""+(k.v % 1 == 0 ? k.v : Math.round(k.v * 10000) / 10000);
 	}
-	if (k.t == 1) { return ktos(k,true); }
-	if (k.t == 2) { return (symbol==1?"":"`")+k.v; }
-	if (k.t == 3) {
+	if (k.t == tCHAR) { return atomtostring(k,true); }
+	if (k.t == tSYMBOL) { return (symbol==1?"":"`")+k.v; }
+	if (k.t == tLIST) {
 		if (len(k) <  1) { return "()"; }
 		if (len(k) == 1) { return ","+format(k.v[0]); }
 		var same = true; var sublist = false; indent = indent || "";
-		for(var z=0;z<len(k);z++) { same &= k.v[z].t == k.v[0].t; sublist |= k.v[z].t == 3; }
+		for(var z=0;z<len(k);z++) { same &= k.v[z].t == k.v[0].t; sublist |= k.v[z].t == tLIST; }
 		if (sublist) { return "("+k.v.map(indented).join("\n "+indent)+")"; }
-		if (same & k.v[0].t == 1) { return ktos(k, true); }
-		if (same & k.v[0].t <  3) { return k.v.map(format).join(k.v[0].t == 2 ? "" : " "); }
+		if (same & k.v[0].t == tCHAR) { return atomtostring(k, true); }
+		if (same & k.v[0].t <  3) { return k.v.map(format).join(k.v[0].t == tSYMBOL ? "" : " "); }
 		return "("+k.v.map(format).join(";")+")" ;
 	}
-	if (k.t == 4) {
-		if (len(k.k)<1 || k.k.v.some(function(x) { return x.t != 2 }))
+	if (k.t == tDICT) {
+		if (len(k.k)<1 || k.k.v.some(x => x.t != tSYMBOL))
 		{ var t=format(k.k); if (len(k.k)==1) { t="("+t+")"; } return t+"!"+format(k.v); }
-		return "["+kzip(k.k,k.v,function(x,y){return x.v+":"+format(y);}).v.join(";")+"]";
+		return "["+kzip(k.k,k.v,(x,y) => {return x.v+":"+format(y);}).v.join(";")+"]";
 	}
-	if (k.t == 5) {
+	if (k.t == tFUNC) {
 		return "{"+(k.args.length?"["+k.args.join(";")+"]":"")+format(k.v)+"}" +
-				(k.curry ? "["+format(k.args.map(function(x,i) { return k.curry[i]; }))+"]" : "");
+				(k.curry ? "["+format(k.args.map((x,i) => k.curry[i]))+"]" : "");
 	}
-	if (k.t ==  6) { return k.v+"::"+format(k.r); }
-	if (k.t ==  7) { return k.v+(k.r?(k.global?"::":":")+format(k.r):""); }
-	if (k.t ==  8) {
+	if (k.t == tVIEW) { return k.v+"::"+format(k.r); }
+	if (k.t == tREF) { return k.v+(k.r?(k.global?"::":":")+format(k.r):""); }
+	if (k.t == tVERB) {
 		if (k.curry) { return k.v+"["+format(k.curry)+"]"+format(k.r); }
 		var left = (k.l?format(k.l):""); if (k.l && k.l.l) { left = "("+left+")"; }
 		return left+k.v+(k.r?format(k.r):"");
 	}
-	if (k.t ==  9) { return (k.l?format(k.l)+" ":"")+format(k.verb)+k.v+format(k.r); }
-	if (k.t == 11) { return ""; }
-	if (k.t == 12) { return "$["+format(k.v)+"]"; }
-	if (k.t == 13) { return "("+format(k.v)+")"; }
+	if (k.t == tADVERB) { return (k.l?format(k.l)+" ":"")+format(k.verb)+k.v+format(k.r); }
+	if (k.t == tNIL) { return ""; }
+	if (k.t == tCOND) { return "$["+format(k.v)+"]"; }
+	if (k.t == tQUOTE) { return "("+format(k.v)+")"; }
 }
 
 // js natives and k natives:
-var natives = {"log":0,"exp":0,"cos":0,"sin":0};
+export var natives = {"log":0,"exp":0,"cos":0,"sin":0};
 var infix   = {"o":0,"in":0};
-function nmonad(n, f) { verbs[n]=[f, am(f), null,null,null,null,null,null]; }
-function baseEnv() {
+function nmonad(n, f) { verbs[n]=[f, atomicmonad(f), null,null,null,null,null,null]; }
+export function baseEnv() {
 	var env = new Environment(null);
-	nmonad("log", function(x) { return k(0, Math.log(n(x).v)) });
-	nmonad("exp", function(x) { return k(0, Math.exp(n(x).v)) });
-	nmonad("cos", function(x) { return k(0, Math.cos(n(x).v)) });
-	nmonad("sin", function(x) { return k(0, Math.sin(n(x).v)) });
+	nmonad("log", x => k(tNUMBER, Math.log(numeric(x).v)));
+	nmonad("exp", x => k(tNUMBER, Math.exp(numeric(x).v)));
+	nmonad("cos", x => k(tNUMBER, Math.cos(numeric(x).v)));
+	nmonad("sin", x => k(tNUMBER, Math.sin(numeric(x).v)));
 	run(parse("prm:{{$[x;,/x,''o'x^/:x;,x]}@$[-8>@x;!x;x]}"), env);
 	run(parse("in:{~^y?x}"), env);
 	return env;
@@ -958,15 +965,9 @@ var odoimpl    = parse("{+x\\'!*/x}")[0];
 var splitimpl  = parse("{1_'(&x=y)_y:x,y}")[0];
 
 // export the public interface:
-function setIO(symbol, slot, func) {
+export function setIO(symbol, slot, func) {
 	if (!(symbol in verbs)) { verbs[symbol]=[null,null,null,null,null,null]; }
 	verbs[symbol][slot] = func;
 }
 
-this.version = "0.1";
-this.parse = parse;
-this.format = format;
-this.run = run;
-this.Environment = Environment;
-this.baseEnv = baseEnv;
-this.setIO = setIO;
+export const version = "0.1";

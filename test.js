@@ -6,7 +6,7 @@
 //
 ////////////////////////////////////
 
-var ok = require("./oK");
+import * as ok from "./oK.js";
 
 var fails = 0; var tests = 0;
 function test(input, output) {
@@ -42,31 +42,6 @@ function fail(input, errmsg) {
 		fails++;
 	}
 	tests++;
-}
-
-function files() {
-	var fs = require("fs");
-	var sourcefiles = [
-		"examples/binpack.k",
-		"examples/islands.k",
-		"examples/strings.k",
-		"examples/treedepth.k",
-		"examples/idioms.k",
-		"examples/runlength.k",
-		"examples/lexicographic.k",
-		"examples/parsing.k",
-		"examples/merge.k",
-		"examples/bencode.k",
-	];
-	for(var z=0;z<sourcefiles.length;z++) {
-		var program = fs.readFileSync(sourcefiles[z], { encoding:'utf8' });
-		process.stdout.write(ok.format(ok.run(ok.parse(program), ok.baseEnv())));
-		process.stdout.write("\n");
-	}
-}
-
-function show(input) {
-	console.log(JSON.stringify(ok.parse(input), null, 2));
 }
 
 console.log("tests...");

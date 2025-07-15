@@ -1,7 +1,7 @@
 oK
 ==
 
-oK is a toy interpreter for a dialect of the [K programming language](http://en.wikipedia.org/wiki/K_(programming_language)) which aims to be an implementation of [K5](http://kparc.com), the still-evolving bleeding edge version of the language. Expect oK to be buggy, incomplete and occasionally flat-out wrong, but slowly improving over time. Read the [oK Manual](https://github.com/JohnEarnest/ok/blob/gh-pages/docs/Manual.md) for an overview of oK's operators and syntax.
+oK is a toy interpreter for a dialect of the [K programming language](http://en.wikipedia.org/wiki/K_(programming_language)) which aims to be an implementation of [K5](http://kparc.com), the still-evolving bleeding edge version of the language. Expect oK to be buggy, incomplete and occasionally flat-out wrong, but slowly improving over time. Read the [oK Manual](https://github.com/dragoncoder047/ok/blob/main/docs/Manual.md) for an overview of oK's operators and syntax.
 
 If you are interested in learning more about K, consider downloading the free version of [kdb](http://kx.com/software-download.php) from Kx Systems, the fine makers of K. Alternatively, [Kona](https://github.com/kevinlawler/kona) is an open-source reimplementation of K3/K4.
 
@@ -9,6 +9,7 @@ oK does not intend to be particularly fast or suitable for any practical purpose
 
 Trying oK
 ---------
+
 The easiest way to run oK is using the [Browser-based REPL](http://johnearnest.github.io/ok/index.html). This REPL features a few special commands which can be issued at the beginning of a line:
 
 - `\\` (while entering a multiline expression) cancel this expression.
@@ -41,6 +42,7 @@ oK provides several numbered IO verbs:
 		 0 7 14 21 28 35 42 49 56 63
 		 0 8 16 24 32 40 48 56 64 72
 		 0 9 18 27 36 45 54 63 72 81)
+
 In the command-line REPL `0:` reads a file as text. The right argument can be a symbol or a string specifying the file path. If the path is to a directory, `0:` returns its listing. If the path is empty and oK is not running interactively, `0:` tries to read text from `stdin` until it encounters a `'\n'`.
 
 - monadic `1:` works just like monadic 0: except it expects the response to be JSON rather than arbitrary text, and it attempts to parse it into a K data structure you can then manipulate:
@@ -73,6 +75,7 @@ If you visit the page with a `?run=` URL parameter, the remainder of the URL wil
 
 Command Line Mode
 -----------------
+
 Alternatively, you can run oK via the command line with  [Node.js](http://nodejs.org). `test.js` runs a series of automated tests:
 
 	je@indigo$ node test.js
@@ -105,6 +108,7 @@ This REPL is very simplistic compared to the CLI provided in a complete K interp
 
 Mobile
 ------
+
 On mobile devices like cell phones, try [oK Mobile](http://johnearnest.github.io/ok/mobile.html)!
 
 ![Mobile View Screenshot](https://raw.githubusercontent.com/JohnEarnest/ok/gh-pages/mobile.png)
@@ -147,6 +151,7 @@ Finally, oK mobile supports a basic set of backslash commands:
 
 How Does It Work?
 -----------------
+
 oK's interpreter centers around trees of objects (called k-values) which represent K datatypes. Every k-value has a field `t` which indicates the object type and a `v` field containing JavaScript value(s) such as arrays or numbers. Some k-values do not correspond to K types but instead represent nodes of an abstract syntax tree (AST) comprising a program, and may contain additional fields.
 
 The section titled _Primitive Verbs_ contains implementations of the wide range of primitive operators in K which operate on and return k-values. In these implementations the overloaded variations of K primitives which operate on different datatypes have often been split into several distinct functions.
