@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-import { setIO, format, baseEnv, run, parse, version } from './oK.js';
+import { vtATOMICMONAD, vtLISTMONAD, vtATOMICDYAD, vtTRIAD, setIO, format, baseEnv, run, parse, version } from './oK.js';
 import { statSync as stat, readdirSync as readdir, readFileSync as slurp, readSync as readfd, writeFileSync as spit, writeSync as writefd } from 'fs';
 import { homedir } from 'os';
 import { resolve } from 'path';
 import { createInterface } from 'readline';
 import { tojs, tok } from './convert.js';
+
 var help = `oK has atom, list (2;\`c), dict \`a\`b!(2;\`c) and func {[x;y]x+y}
 20 primitives/verbs, 6 operators/adverbs and 3 system functions
 
@@ -50,19 +51,19 @@ function readp(dt, x) {
 		if (dt==0) {
 			return tok(stat(f).isDirectory() ? readdir(f) : slurp(f, 'utf8').replace(/\r?\n$/, '').split(/\r?\n/));
 		} else if (dt==1) {
-			if (!stat(f).isDirectory()) 	{ tojs = slurp(f, 'utf8'); }
-			else								{ throw Error("ERROR: Path '"+f+"' is a directory"); }
+			if (!stat(f).isDirectory()) { tojs = slurp(f, 'utf8'); }
+			else { throw Error("ERROR: Path '"+f+"' is a directory"); }
 		}
 	} else if (rl) {
 		throw Error('ERROR: cannot read from stdin while in REPL');
 	} else {
-		var b = Buffer(128), b0, n = 0;
+		var b = Buffer.allocUnsafe(128), b0, n = 0;
 		while (readfd(process.stdin.fd, b, n, 1) && b[n] !== 10) {
 			n++;
-			if (n === b.length) { b0 = b; b = Buffer(2 * n); b0.copy(b, 0, 0, n); b0 = null; } // resize buffer when full
+			if (n === b.length) { b0 = b; b = Buffer.allocUnsafe(2 * n); b0.copy(b, 0, 0, n); b0 = null; } // resize buffer when full
 		}
-		if 		(dt==0) { return tok(b.toString('utf8', 0, n)); }
-		else if (dt==1) { tojs = b.toString('utf8', 0, n); }
+		if 		(dt == 0) { return tok(b.toString('utf8', 0, n)); }
+		else if (dt == 1) { tojs = b.toString('utf8', 0, n); }
 	}
 	if (tojs) {
 		try 		{ return tok(JSON.parse(tojs)); }
@@ -71,10 +72,10 @@ function readp(dt, x) {
 }
 function writep(dt, x, y) {
 	var s = tojs(y);
-	if (dt==0) {
+	if (dt == 0) {
 		if (Array.isArray(s)) { s = s.join('\n') + '\n'; }
 		if (typeof s !== 'string') { throw Error('ERROR: type'); }
-	} else if (dt==1) {
+	} else if (dt == 1) {
 		s = JSON.stringify(s);
 	}
 	var f = str(x);
@@ -82,11 +83,11 @@ function writep(dt, x, y) {
 	else 	{ writefd(process.stdout.fd, s); }
 	return y;
 }
-for (var i = 0; i < 2; i++) { setIO('0:', i, x => readp(0,x)); }
-for (var i = 0; i < 2; i++) { setIO('1:', i, x => readp(1,x)); }
-setIO('5:', 1, x => tok(format(x)));
-for (var i = 2; i < 6; i++) { setIO('0:', i, (x,y) => writep(0,x,y)); }
-for (var i = 2; i < 6; i++) { setIO('1:', i, (x,y) => writep(1,x,y)); }
+for (var i = vtATOMICMONAD; i < vtATOMICDYAD; i++) { setIO('0:', i, x => readp(0, x)); }
+for (var i = vtATOMICMONAD; i < vtATOMICDYAD; i++) { setIO('1:', i, x => readp(1, x)); }
+setIO('5:', vtLISTMONAD, x => tok(format(x)));
+for (var i = vtATOMICDYAD; i < vtTRIAD; i++) { setIO('0:', i, (x, y) => writep(0, x, y)); }
+for (var i = vtATOMICDYAD; i < vtTRIAD; i++) { setIO('1:', i, (x, y) => writep(1, x, y)); }
 
 var env = baseEnv();
 
@@ -143,7 +144,7 @@ rl.on('line',  line => {
 				var output = format(run(parse(line), env)) + '\n';
 				if (showtime) {
 					var endtime = new Date().getTime();
-					output += "completed in "+(endtime-starttime)+"ms.\n";
+					output += "completed in " + (endtime-starttime) + "ms.\n";
 				}
 			} else {
 				output = help;

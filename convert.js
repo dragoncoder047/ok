@@ -8,27 +8,27 @@
 //
 ////////////////////////////////////
 
-import { sym, tCHAR, tDICT, tFUNC, tLIST, tNIL, tNUMBER, tREF, tSYMBOL, tVERB } from "./oK.js";
+import { k, emptydict, sym, format, tCHAR, tDICT, tFUNC, tLIST, tNIL, tNUMBER, tREF, tSYMBOL, tVERB } from "./oK.js";
 
 export function tok(v) {
-	if (v == null) { return { t:tNIL, v:null }; }
-	if (typeof v == 'number') { return { t:tNUMBER, v:v }; }
+	if (v == null) { return k(tNIL, null); }
+	if (typeof v == 'number') { return k(tNUMBER, v); }
 	if (typeof v == 'string') {
 		var r = [];
-		for(var z=0;z<v.length;z++) { r[z] = { t:tCHAR, v:v.charCodeAt(z) }; }
-		return { t:tLIST, v:r };
+		for (var z = 0; z < v.length; z++) { r[z] = k(tCHAR, v.charCodeAt(z)); }
+		return k(tLIST, v);
 	}
 	if (v instanceof Array) {
 		var r = [];
-		for(var z=0;z<v.length;z++) { r[z] = tok(v[z]); }
-		return { t:tLIST, v:r };
+		for (var z = 0; z < v.length; z++) { r[z] = tok(v[z]); }
+		return k(tLIST, r);
 	}
 	if (typeof v == 'object') {
-		var r = { t:tDICT, k:{ t:tLIST, v:[] }, v:{ t:tLIST, v:[] }};
-		var k = Object.keys(v);
-		for(var z=0;z<k.length;z++) {
-			r.k.v.push( { t:tSYMBOL, v:k[z] } );
-			r.v.v.push( tok(v[k[z]]) );
+		var r = emptydict();
+		var kv = Object.keys(v);
+		for (var z = 0; z < kv.length; z++) {
+			r.k.v.push(sym(kv[z]));
+			r.v.v.push(tok(v[kv[z]]));
 		}
 		return r;
 	}
@@ -42,21 +42,24 @@ export function tojs(v) {
 	if (v.t == tLIST) {
 		var r = [];
 		var same = true;
-		for(var z=0;z<v.v.length;z++) { r[z] = tojs(v.v[z]); same &= v.v[z].t == v.v[0].t; }
-		if (same && v.v.length != 0 && v.v[0].t == 1) { return r.join(""); }
+		for (var z = 0; z < v.v.length; z++) { r[z] = tojs(v.v[z]); same &= v.v[z].t == v.v[0].t; }
+		if (same && v.v.length != 0 && v.v[0].t == tCHAR) { return r.join(""); }
 		return r;
 	}
 	if (v.t == tDICT) {
 		var r = {};
-		for(var z=0;z<v.k.v.length;z++) { r[tojs(v.k.v[z])] = tojs(v.v.v[z]); }
+		for (var z = 0; z < v.k.v.length; z++) { r[tojs(v.k.v[z])] = tojs(v.v.v[z]); }
 		return r;
 	}
-	throw new Error(`cannot convert '${JSON.stringify(v)}' to a JavaScript datatype.`);
+    var bad;
+    try { bad = JSON.stringify(v); } catch(e) { bad = format(v); }
+	throw new Error(`cannot convert '${bad}' to a JavaScript datatype.`);
 }
 
 export function trampoline(env, name, args) {
 	// construct a function-wrapper trampoline for a pseudonative.
 	// this permits dyadic/triadic extension functions to be properly curryable.
-	var arguse = []; for(var z=0; z<args.length; z++) { arguse.push({"t":tREF, "v":args[z]}); }
-	env.put(sym(name), true, {t: tFUNC, args:args, v: [ {"t":tVERB,"v":name,"curry":arguse} ]});
+	var arguse = [];
+    for (var z = 0; z < args.length; z++) { arguse.push(k(tREF, args[z])); }
+	env.put(sym(name), true, { t: tFUNC, args, v: [{ t: tVERB, v: name, curry: arguse }]});
 }
