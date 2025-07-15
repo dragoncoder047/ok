@@ -49,7 +49,7 @@ function isKString(x)    { return x.t == tLIST && x.v.every(c => c.t == tCHAR); 
 function kMod(x, y)      { return x - y * Math.floor(x / y); }
 export function len(x)   { return ensureList(x).v.length; }
 function kRange(x, f)    { var r = []; for (var z = 0; z < x; z++) r.push(f(z)); return k(tLIST, r); }
-function hex2(x)         { return (x.v + 0x100).toString(16).substring(-2); }
+function hex2(x)         { return (x.v + 0x100).toString(16).slice(-2); }
 function listGet(x, y)   { if (y < 0 || y >= len(x)) { throw new Error("index out of bounds."); } return x.v[y]; }
 function dictGet(x, y)   { var i = findMatch(x.k, y); return (i.v == len(x.k)) ? K_NAN : subscr(x.v, i); }
 function listSet(x, y, z){ if (len(x) <= ensurePosInt(y)) { throw new Error("index out of bounds."); } x.v[y.v] = z; }
@@ -74,7 +74,7 @@ function kStringToJSString(x, esc) {
 	var notASCII = x.v.some(v => (v.v < 32 || v.v > 127) & v.v != 9 & v.v != 10);
 	if (notASCII) { return "0x" + x.v.map(hex2).join(""); }
 	var r = x.v.map(k => String.fromCharCode(k.v)).join("");
-	return esc ? '"'+ESCAPE_PAIRS.reduce((r,p) => r.split(p[0]).join(p[1]), r)+'"' : r;
+	return esc ? '"'+ESCAPE_PAIRS.reduce((r, p) => r.split(p[0]).join(p[1]), r)+'"' : r;
 }
 
 ////////////////////////////////////
@@ -147,7 +147,7 @@ function except(x, y) {
 	return k(tLIST, x.v.filter(z => isKNAN(findEqual(y, z))));
 }
 
-function filter(x, y, k) { return y.t == tDICT ? dict(k, subscr(y,k)) : subscr(y,k) }
+function filter(x, y, k) { return y.t == tDICT ? dict(k, subscr(y, k)) : subscr(y, k) }
 function dictdrop(x, y) { var k = except(ensureDict(y).k, x); return dict(k, subscr(y, k)); }
 function drop(x, y, env) {
 	if (x.t == tFUNC || x.t == tVERB || x.t == tADVERB) { return filter(x, y, where(am(not)(eachMonadic(x, y, env), env))) }
@@ -185,15 +185,15 @@ function match(x, y) {
 	return toBool(x.v.every((x, i) => match(x, y.v[i]).v));
 }
 
-function findMatch(x, y) { y = x.v.findIndex(z => match(z,y).v); return k(tNUMBER, y >= 0 ? y : len(x)); }
-function findEqual(x, y) { y = x.v.findIndex(z => equal(z,y).v); return y >= 0 ? k(tNUMBER, y) : K_NAN }
+function findMatch(x, y) { y = x.v.findIndex(z => match(z, y).v); return k(tNUMBER, y >= 0 ? y : len(x)); }
+function findEqual(x, y) { y = x.v.findIndex(z => equal(z, y).v); return y >= 0 ? k(tNUMBER, y) : K_NAN }
 function nullish(x) { return toBool(match(x, EMPTYSYM).v || match(x, NILVAL).v || isKNAN(x)); }
 
 function cut(x, y, env) {
 	return kZip(x, concat(drop(K_ONE, x, env), count(y)), (a, b) => { // {x{x@y+!z-y}[y]'1_x,#y} ?
 		var r = [];
         for (var z = ensurePosInt(a); z < ensurePosInt(b); z++)
-            r.push(listGet(y,z));
+            r.push(listGet(y, z));
         return k(tLIST, r);
 	});
 }
@@ -204,7 +204,7 @@ function rnd(x, y, env) {
 	if (y.t == tLIST) { return subscr(y, rnd(x, count(y))); }
     ensurePosInt(y);
 	if (numeric(x).v < 0) {
-        if (-x.v > y.v) throw new Error("length error.");
+        if (-x.v > y.v) throw new Error(`cannot pick ${-x.v} numbers when there are only ${y.v} to choose from.`);
         return take(x, asc(randomV(y)), env);
     }
 	return kMap(iota(x), () => k(tNUMBER, Math.floor(Math.random() * y.v)));
@@ -240,7 +240,7 @@ function unique(x) {
     for (var z = 0; z < len(x); z++) {
 		if (!r.some(e => match(x.v[z], e).v)) { r.push(x.v[z]); }
 	}
-    return k(tLIST,r);
+    return k(tLIST, r);
 }
 
 function binsearch(x, y) {
@@ -252,11 +252,11 @@ function binsearch(x, y) {
 function comparelists(x, y, a) {
 	return match(x, y).v ? 0 : len(x) < len(y) ? a : len(x) > len(y) ? !a :
 	       less(first(x), first(y)).v ? a: more(first(x), first(y)).v ? !a :
-	       comparelists(drop(K_ONE, x),drop(K_ONE, y), a);
+	       comparelists(drop(K_ONE, x), drop(K_ONE, y), a);
 }
 
 function split  (x, y) { return (x.t != tCHAR) ? unpack(x, y) : call(splitimpl, k(tLIST, [x, y])); }
-function unpack (x, y) { return call(unpackimpl, k(tLIST, [x,y])); }
+function unpack (x, y) { return call(unpackimpl, k(tLIST, [x, y])); }
 function pack   (x, y) { return (x.t == tCHAR) ? join(x, y) : call(packimpl, k(tLIST, [x, y])); }
 function kwindow(x, y) { return call(winimpl, k(tLIST, [x, y])); }
 function splice(xyz)   { return call(spliceimpl, k(tLIST, xyz)); }
@@ -292,12 +292,12 @@ function eachLeft(dyad, list, right, env) {
 }
 
 function eachPrior(dyad, x, env) {
-	var specials = { "+": K_ZERO, "*": K_ONE, "-": K_ZERO, "&": first(x), ",": k(tLIST,[]), "%": K_ONE };
+	var specials = { "+": K_ZERO, "*": K_ONE, "-": K_ZERO, "&": first(x), ",": k(tLIST, []), "%": K_ONE };
 	return eachPriorHelper(dyad, (dyad.v in specials) ? specials[dyad.v] : K_NAN, x, env);
 }
 
 function stencil(monad, x, y, env) {
-	return eachMonadic(monad, call(winimpl, k(tLIST, [x,y]), env))
+	return eachMonadic(monad, call(winimpl, k(tLIST, [x, y]), env))
 }
 
 function eachPriorHelper(dyad, x, y, env) {
@@ -344,7 +344,7 @@ function fixedwhile(monad, x, y, env) {
 function scan(dyad, x, env) {
 	if (x.t != tLIST || len(x) <= 1) { return x; }
 	var i = first(x), r = enlist(i);
-	kMap(drop(K_ONE,x,env), z => { r.v.push(i = applyDyad(dyad, i, z, env)); }); return r;
+	kMap(drop(K_ONE, x, env), z => { r.v.push(i = applyDyad(dyad, i, z, env)); }); return r;
 }
 
 function scand(dyad, x, y, env) {
@@ -358,7 +358,7 @@ function scanfixed(monad, x, env) {
 		if (match(p, n).v || match(n, x).v) break;
         r.push(n);
 	}
-    return k(tLIST,r);
+    return k(tLIST, r);
 }
 
 function scanwhile(monad, x, y, env) {
@@ -403,12 +403,12 @@ function ad(f) { // create an atomic dyad
 		if (x.t == tDICT && y.t == tDICT) {
 			var r = emptydict();
             kMap(unique(concat(x.k, y.k)), k => {
-				var a = dictGet(x,k), b = dictGet(y,k);
+				var a = dictGet(x, k), b = dictGet(y, k);
                 dictSet(r, k, a == K_NAN ? b : b == K_NAN ? a : recur(a, b, env));
 			});
             return r;
 		}
-		return x.t == tLIST && y.t == tLIST ? kZip(x, y, (a,b) => recur(a, b, env)) :
+		return x.t == tLIST && y.t == tLIST ? kZip(x, y, (a, b) => recur(a, b, env)) :
 		       x.t == tDICT ? dict(x.k, recur(x.v, y, env)) :
 		       y.t == tDICT ? dict(y.k, recur(x, y.v, env)) :
 		       x.t == tLIST ? kMap(x, z => recur(z, y, env)) :
@@ -440,7 +440,7 @@ function applyMonad(verb, x, env) {
 }
 
 function applyDyad(verb, x, y, env) {
-	if (verb.t == tFUNC) { return call(verb, k(tLIST,[x,y]), env); }
+	if (verb.t == tFUNC) { return call(verb, k(tLIST, [x, y]), env); }
 	if (verb.sticky && verb.sticky != verb) {
 		var s = verb.sticky;
         s.l = x; s.r = y;
@@ -453,11 +453,19 @@ function applyDyad(verb, x, y, env) {
 	return applyverb(verb, [x, y], env);
 }
 
+function ret(x) {
+    return k(tRETURN, x);
+}
+
+function fail(x, env) {
+    throw new Error("'" + format(x, env));
+}
+
 export const vtATOMICMONAD = 0, vtLISTMONAD = 1, vtATOMICDYAD = 2, vtLISTATOMDYAD = 3, vtATOMLISTDYAD = 4, vtLISTLISTDYAD = 5, vtTRIAD = 6, vtTETRAD = 7;
 
-export const verbs = {
+const verbs = {
 	//     a            l            a-a         l-a         a-l         l-l            triad    tetrad
-	":" : [ident,       ident,       rident,     rident,     rident,     rident,        null,    null  ],
+	":" : [ret,         ret,         rident,     rident,     rident,     rident,        null,    null  ],
 	"+" : [flip,        flip,        ad(plus),   ad(plus),   ad(plus),   ad(plus),      null,    null  ],
 	"-" : [am(negate),  am(negate),  ad(minus),  ad(minus),  ad(minus),  ad(minus),     null,    null  ],
 	"*" : [first,       first,       ad(times),  ad(times),  ad(times),  ad(times),     null,    null  ],
@@ -477,7 +485,7 @@ export const verbs = {
 	"?" : [randomV,     unique,      rnd,        findEqual,  rnd,        ar(findEqual), splice,  null  ],
 	"@" : [type,        type,        subscr,     subscr,     subscr,     subscr,        amend4,  amend4],
 	"." : [kEval,       kEval,       call,       call,       call,       call,          dmend3,  dmend4],
-	"'" : [null,        null,        null,       binsearch,  null,       ar(binsearch), null,    null  ],
+	"'" : [fail,        null,        null,       binsearch,  null,       ar(binsearch), null,    null  ],
 	"/" : [null,        null,        null,       null,       pack,       pack,          null,    null  ],
 	"\\": [null,        null,        null,       unpack,     split,      null,          null,    null  ],
 	"':": [null,        null,        null,       null,       kwindow,    null,          null,    null  ],
@@ -541,7 +549,7 @@ function applyadverb(node, verb, args, env) {
 	if (verb.t == tREF) { verb = run(verb, env); }
 	var r = null; var v = valence(verb, env);
 	if (v > 2)                 { return adverbs[node.v][atMANYARGS](verb, args, env); }
-	if (v == 0 && verb.t != tFUNC) { return applyverb(k(tVERB,node.v), [verb, args[atDYAD]], env); }
+	if (v == 0 && verb.t != tFUNC) { return applyverb(k(tVERB, node.v), [verb, args[atDYAD]], env); }
 	if (v == 0 && verb.t == tFUNC) { v = 1; }
 	if (v == 2 && !args[1])    { args = [null, args[0]]; }
 	if (v == 1 && !args[0])    { r = adverbs[node.v][atMONAD]; }
@@ -619,11 +627,20 @@ function call(x, y, env) {
 		for (var z = 0; z < x.args.length; z++) { environment.put(sym(x.args[z]), false, curry[z]); }
 	}
 	environment.put(sym("o"), false, x);
-    return run(x.v, environment);
+    var result = run(x.v, environment);
+    if (result.t == tRETURN) return result.v;
+    return result;
 }
 
 export function run(node, env) {
-	if (node instanceof Array) { return node.reduce((_, x) => run(x, env), null); }
+	if (node instanceof Array) {
+        var final = null;
+        for (var z = 0; z < node.length; z++) {
+            final = run(node[z], env);
+            if (final && final.t == tRETURN) return final;
+        }
+        return final;
+    }
 	if (node.sticky) { return node; }
 	if (node.t == tLIST) { return reverse(kMap(reverse(node), v => run(v, env))); }
 	if (node.t == tDICT) { return dict(node.k, kMap(node.v, x => run(x, env))); }
@@ -664,7 +681,7 @@ function dmend4(args, env) { return mend(args, env, dmend, dmend); }
 
 function mend(args, env, monadic, dyadic) {
 	var ds = deepclone(args[0]), i = args[1], f = args[2], y = args[3];
-	(y ? dyadic : monadic)(ds.t == tSYMBOL ? env.lookup(ds,true) : ds, i, y, f, env); return ds;
+	(y ? dyadic : monadic)(ds.t == tSYMBOL ? env.lookup(ds, true) : ds, i, y, f, env); return ds;
 }
 
 function amendm(d, i, y, monad, env) {
@@ -685,9 +702,9 @@ function dmend(d, i, y, f, env) {
 	var rest = drop(K_ONE, i, env);
 	if (i.v[0].t == tLIST) {
 		if (y && y.t == tLIST) { kZip(i, y, (a, b) => amendd(d, a, b, f, env)); return; }
-		kMap(i.v[0], x => dmend(subscr(d,x,env), rest, y, f, env));
+		kMap(i.v[0], x => dmend(subscr(d, x, env), rest, y, f, env));
 	}
-	else if (isNull(i.v[0]).v) { kMap(d, (_, i) => dmend(subscr(d,k(tNUMBER,i),env),rest,y,f,env)); }
+	else if (isNull(i.v[0]).v) { kMap(d, (_, i) => dmend(subscr(d, k(tNUMBER, i), env), rest, y, f, env)); }
 	else if (d.t == tLIST && d.v[0].t != tLIST) { (y ? amendd : amendm)(d, i, y, f, env); }
 	else {
 		var di = subscr(d, first(i), env);
@@ -698,7 +715,7 @@ function dmend(d, i, y, f, env) {
 
 function trap(args, env) {
 	try {
-        return k(tLIST, [K_ZERO, call(args[0], ensureList(args[1]))]);
+        return k(tLIST, [K_ZERO, call(args[0], ensureList(args[1]), env)]);
     } catch(e) {
         return k(tLIST, [K_ONE, jsStringToKString(e.message ?? String(e))]);
     }
@@ -723,6 +740,7 @@ const rADVERB  = /^['\\\/]:?/;
 const rSEMI    = /^;/;
 const rCOLON   = /^:/;
 const rVIEW    = /^::/;
+const rTICK    = /^'/;
 const rCOND    = /^\$\[/;
 const rDICT    = /^\[[a-z]+:/i;
 const rOPEN_B  = /^\[/;
@@ -735,7 +753,7 @@ const rCLOSE_C = /^}/;
 const des = {};
 des[rNUMBER ] = "number"; des[rNAME   ] = "name"   ; des[rSYMBOL ] = "symbol"; des[rSTRING] = "string";
 des[rVERB   ] = "verb"  ; des[rIOVERB ] = "IO verb"; des[rADVERB ] = "adverb"; des[rSEMI  ] = "';'";
-des[rCOLON  ] = "':'"   ; des[rVIEW   ] = "view"   ; des[rCOND   ] = "'$['"  ;
+des[rCOLON  ] = "':'"   ; des[rVIEW   ] = "view"   ; des[rCOND   ] = "'$['"  ; des[rTICK  ] = "tick";
 des[rOPEN_B ] = "'['"   ; des[rOPEN_P ] = "'('"    ; des[rOPEN_C ] = "'{'"   ; des[rASSIGN] = "assignment";
 des[rCLOSE_B] = "']'"   ; des[rCLOSE_P] = "')'"    ; des[rCLOSE_C] = "'}'"   ;
 
@@ -777,7 +795,7 @@ function atNoun() {
 }
 
 function indexedassign(node, indexer) {
-	var op = { t: tFUNC, args: ["x","y"], v: [{ t: tREF, v: "y" }] }; // {y}
+	var op = { t: tFUNC, args: ["x", "y"], v: [{ t: tREF, v: "y" }] }; // {y}
 	var gl = matches(rCOLON);
 	var ex = parseEx(parseNoun());
 	// t[x]::z  ->  ..[`t;x;{y};z]   t[x]:z  ->  t:.[t;x;{y};z]
@@ -892,14 +910,15 @@ function parseNoun() {
 		var r = k(tFUNC, parseList(rCLOSE_C, true));
 		if (args.length == 0) {
 			var names = findNames(r.v, {});
-			if      ("z" in names) { args = ["x","y","z"]; }
-			else if ("y" in names) { args = ["x","y"]; }
+			if      ("z" in names) { args = ["x", "y", "z"]; }
+			else if ("y" in names) { args = ["x", "y"]; }
 			else if ("x" in names) { args = ["x"]; }
 		}
 		r.args = args; return applycallright(r);
 	}
 	if (matches(rOPEN_P)) { return applyindexright(wraplist(parseList(rCLOSE_P))); }
 	if (matches(rCOND))   { return k(tCOND, parseList(rCLOSE_B, true)); }
+    if (matches(rTICK))   { return { t: tVERB, v: "'", r: parseNoun() }; }
 	if (at(rVERB)) {
 		var r = k(tVERB, expect(rVERB));
 		if (matches(rCOLON)) { r.v += ":"; r.forcemonad = true; }
@@ -984,6 +1003,7 @@ export function parse(str) {
 export function format(k, indent, symbol) {
 	if (typeof indent == "number") { indent = ""; }
     if (k == null) { return ""; }
+    if (k.t == tRETURN) k = k.v;
 	function indented(k) { return format(k, indent + " "); };
 	if (k instanceof Array) { return k.map(format).join(";"); }
 	if (k.sticky) {
@@ -998,7 +1018,7 @@ export function format(k, indent, symbol) {
 		"" + (k.v % 1 == 0 ? k.v : Math.round(k.v * 10000) / 10000); // limit to 5 decimal digits
 	}
 	if (k.t == tCHAR) { return kStringToJSString(k, true); }
-	if (k.t == tSYMBOL) { return (symbol ? "" : "`") + k.v; }
+	if (k.t == tSYMBOL) { return (symbol == 1 ? "" : "`") + k.v; }
 	if (k.t == tLIST) {
 		if (len(k) <  1) { return "()"; }
 		if (len(k) == 1) { return "," + format(k.v[0]); }
@@ -1016,7 +1036,7 @@ export function format(k, indent, symbol) {
             if (len(k.k) == 1) { t = "(" + t + ")"; }
             return t + "!" + format(k.v);
         }
-		return "[" + kZip(k.k, k.v, (x,y) => x.v + ":" + format(y)).v.join(";") + "]";
+		return "[" + kZip(k.k, k.v, (x, y) => x.v + ":" + format(y)).v.join(";") + "]";
 	}
 	if (k.t == tFUNC) {
 		return "{" + (k.args.length ? "[" + k.args.join(";") + "]" : "") + format(k.v) + "}" +

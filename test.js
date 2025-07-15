@@ -228,10 +228,10 @@ test("f:{x+y};.`f"                    , "{[x;y]x+y}"                          );
 test("{t:3 5;t[0]:9;t}"               , "{t:3 5;t:.[t;,0;{[x;y]y};9];t}"      );
 test("t:3 5;t[0]:9;t"                 , "9 5"                                 );
 test("t:0 1 2;t[1],:9;t"              , "(0\n 1 9\n 2)"                       );
-fail("1 2 3+4 5"                      , "length error."                       );
+fail("1 2 3+4 5"                      , "lists are not the same length."      );
 fail("`a+2"                           , "number expected, found symbol."      );
-fail("&-30"                           , "positive int expected."              );
-fail("2 -3 4_1 3 4"                   , "positive int expected."              );
+fail("&-30"                           , "positive int expected, got -30."     );
+fail("2 -3 4_1 3 4"                   , "positive int expected, got -3."      );
 fail("a:b"                            , "the name 'b' has not been defined."  );
 fail("a:1;a[2]"                       , "function or list expected, found number.");
 fail("f:{x+y};f[1;2;3]"               , "valence error."                      );
@@ -264,7 +264,7 @@ test(".[(1 2 3;4 5 6);1;(0,)]"        , "(1 2 3\n 0 4 5 6)"                   );
 test(".[(1 2 3;4 5 6);1 2;(0,)]"      , "(1 2 3\n (4\n  5\n  0 6))"           );
 test(".[(1 2 3;4 5 6);(0 1;1);(0,)]"  , "((1\n  0 2\n  3)\n (4\n  0 5\n  6))" );
 test(".[(1 2 3;4 5 6);(;0);(0,)]"     , "((0 1\n  2\n  3)\n (0 4\n  5\n  6))" );
-fail("a:1 2 3;a[1.4]:5;a"             , "positive int expected."              );
+fail("a:1 2 3;a[1.4]:5;a"             , "positive int expected, got 1.4."      );
 test("$!5"                            , '(,"0"\n ,"1"\n ,"2"\n ,"3"\n ,"4")'  );
 test('"&"\\"foo=42&bar=69"'           , '("foo=42"\n "bar=69")'               );
 fail("1\\3 1 2 2 4 1 5 1"             , "list expected, found number."        );
@@ -341,7 +341,7 @@ test("a:-[5;];a[1+1]"                 , "3"                                   );
 test("a:-[;8];a 12"                   , "4"                                   );
 test("a:-;a[7;1]"                     , "6"                                   );
 test("#'1 2"                          , "(#[1;];#[2;])"                       ); // *
-fail("8)"                             , "unexpected character ')'"            );
+fail("8)"                             , "unexpected character ')'."           );
 test("#:[1 2 3]"                      , "3"                                   ); // !
 test("{x+y}[;5]'1 2 3"                , "6 7 8"                               );
 test("(t;t:5)"                        , "5 5"                                 );
@@ -576,7 +576,7 @@ fail("a:"                             , "noun expected following ':'."        );
 test("f:+/#:';f[(2 2;9;8 8 8)]"       , "6"                                   );
 test('f:+/=;f["hello";"l"]'           , "2"                                   );
 test(".[3 3#0;(0 1;1 0);5]"           , "(5 5 0\n 5 5 0\n 0 0 0)"             );
-fail(".[3 3#0;(0 1;1 9);5]"           , "index error."                        );
+fail(".[3 3#0;(0 1;1 9);5]"           , "index out of bounds."                );
 test(".[3 3#0;(0 1;1 0);2+]"          , "(2 2 0\n 2 2 0\n 0 0 0)"             );
 test(".[3 3#!9;(0 1;1 0);|!6]"        , "(5 4 2\n 2 1 5\n 6 7 8)"             );
 test(".[3 3#0;(0 1;0 1);{[x;y]y};5]"  , "(5 5 0\n 5 5 0\n 0 0 0)"             );
@@ -594,7 +594,7 @@ test("*:'=0 1 1 2 3 5 3 3"            , "0 1 2 3 5!0 1 3 4 5"                 );
 test('<#:\'="abdbbac"'                , '"dcab"'                              );
 test("<[a:2;b:5;c:1]"                 , "`c`a`b"                              );
 test("0x414243"                       , '"ABC"'                               );
-fail("0x41424"                        , "malformed byte string."              );
+fail("0x41424"                        , "stray hex digit at end of byte string.");
 test("#0x6566"                        , "2"                                   );
 test("[a:1+2]"                        , "[a:3]"                               );
 test("[a:1+2]`a"                      , "3"                                   );
@@ -627,7 +627,7 @@ test("{*|&(x@y-1)<x}"                 , "{[x;y]*|&(x@y-1)<x}"                 );
 test('{&("ABC"@1)<"ABC"}[]'           , ",2"                                  );
 test("{x@<x}@-4?3 8 9 2"              , "2 3 8 9"                             );
 test("#?-5?10"                        , "5"                                   );
-fail("-10?3"                          , "length error."                       );
+fail("-10?3"                          , "cannot pick 10 numbers when there are only 3 to choose from.");
 test("{!5}/0"                         , "0 1 2 3 4"                           );
 test("{!5}\\0"                        , "(0\n 0 1 2 3 4)"                     );
 test("{!2}'0 1"                       , "(0 1\n 0 1)"                         );
@@ -648,9 +648,9 @@ test("0x05"                           , "0x05"                                );
 test("0x0a05"                         , "0x0a05"                              );
 test("0x0102"                         , "0x0102"                              );
 test("0x80"                           , "0x80"                                );
-fail("0 6_!5"                         , "length error."                       );
+fail("0 6_!5"                         , "index out of bounds."                );
 test("0 5_!5"                         , "(0 1 2 3 4\n ())"                    );
-fail("-1 2_!3"                        , "positive int expected."              );
+fail("-1 2_!3"                        , "positive int expected, got -1."      );
 test("$`beef"                         , '"beef"'                              );
 test("$`beef`pork"                    , '("beef"\n "pork")'                   );
 test("$[();1;2]"                      , "2"                                   );
@@ -706,8 +706,8 @@ test("6."                             , "6"                                   );
 test("123. 45."                       , "123 45"                              );
 test("-34."                           , "-34"                                 );
 test("1 3.()"                         , "()"                                  );
-fail("1 2!3 4 5"                      , "length error."                       );
-fail("`a`b`c!`d`e"                    , "length error."                       );
+fail("1 2!3 4 5"                      , "lists are not the same length."      );
+fail("`a`b`c!`d`e"                    , "lists are not the same length."      );
 test("c:99;{x,c}'1 2 3"               , "(1 99\n 2 99\n 3 99)"                );
 test("c:99;{x,y,c}'[1 2;3 4]"         , "(1 3 99\n 2 4 99)"                   );
 test("a:1 2 3;`a[1]"                  , "2"                                   );
@@ -812,6 +812,13 @@ test("f:{{n+::x}.(,`n)!,x}[5];f'2 1 10", "7 8 18");
 test("a:5;e:`a`b!2 3;({a::x}.e)[6];(a;e)", "(5;[a:6;b:3])");
 test("a:5;b:7;(.{})`a`b", "5 7");
 test("f:{}. 1 2!3 4;.f", "1 2!3 4");
+
+// return from in a function:
+test("{:`booger;`fail}[]", "`booger");
+fail("{a:6;b:7;:a*b;c::98}[];c", "the name 'c' has not been defined.");
+
+// throw a custom error:
+fail("{a:6;b:7;'`TheEnd;c::98}[]", "'`TheEnd");
 
 // NOTES/TODO:
 

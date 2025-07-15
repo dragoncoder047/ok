@@ -2,7 +2,7 @@
 , "version": "0.0.0"
 , "license" : "MIT"
 , "description": "An open-source interpreter for the K5 programming language"
-, "scripts": { "start": "node repl.js" }
+, "scripts": { "start": "node repl.js", "test": "node test.js" }
 , "main": "oK.js"
 , "type": "module"
 }
