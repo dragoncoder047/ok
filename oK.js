@@ -47,7 +47,7 @@ function falsy(x)        { return match(k(tLIST, []), x).v || match(K_ZERO, x).v
 function toBool(x)       { return x ? K_ONE : K_ZERO; }
 function isKString(x)    { return x.t == tLIST && x.v.every(c => c.t == tCHAR); }
 function kMod(x, y)      { return x - y * Math.floor(x / y); }
-function len(x)          { return ensureList(x).v.length; }
+export function len(x)   { return ensureList(x).v.length; }
 function kRange(x, f)    { var r = []; for (var z = 0; z < x; z++) r.push(f(z)); return k(tLIST, r); }
 function hex2(x)         { return (x.v + 0x100).toString(16).substring(-2); }
 function listGet(x, y)   { if (y < 0 || y >= len(x)) { throw new Error("index out of bounds."); } return x.v[y]; }
@@ -58,7 +58,7 @@ function lowerChar(x)    { return k(tCHAR, String.fromCharCode(x.v).toLowerCase(
 function kMap(x, f)      { return k(tLIST, ensureList(x).v.map(f)); }
 function kZip(x, y, f)   { return kMap(sameLen(x, y), (z, i) => f(z, y.v[i])); }
 function sameLen(x, y)   { if (len(x) != len(y)) { throw new Error("lists are not the same length."); } return x; }
-function numeric(x)      { return (x.t == tNUMBER || x.t == tCHAR) ? x : ensureType(x, tNUMBER); }
+export function numeric(x){ return (x.t == tNUMBER || x.t == tCHAR) ? x : ensureType(x, tNUMBER); }
 function ensureList(x)   { return ensureType(x, tLIST); }
 function ensureDict(x)   { return ensureType(x, tDICT); }
 function ensureAtom(x)   { if (x.t > tSYMBOL) { throw new Error("domain error."); } return x; }
@@ -1036,7 +1036,8 @@ export function format(k, indent, symbol) {
 }
 
 // js natives and k natives:
-export const nativeMonads = {};
+const nativeMonads = {};
+export { nativeMonads as natives };
 export const builtinInfix = { "o": 0, "in": 0 };
 function numericMonad(n, f) { verbs[n] = [f, am(f), null, null, null, null, null, null]; nativeMonads[n] = 0; }
 numericMonad("log", x => k(tNUMBER, Math.log(numeric(x).v)));
