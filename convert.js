@@ -16,7 +16,7 @@ export function tok(v) {
 	if (typeof v == 'string') {
 		var r = [];
 		for (var z = 0; z < v.length; z++) { r[z] = k(tCHAR, v.charCodeAt(z)); }
-		return k(tLIST, v);
+		return k(tLIST, r);
 	}
 	if (v instanceof Array) {
 		var r = [];
