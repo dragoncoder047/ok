@@ -20,7 +20,7 @@ const TYPENAMES = [
 	"nameref"   , //  7 : name, l(index?), r(assignment), global?
 	"verb"      , //  8 : name, l(?), r, curry?
 	"adverb"    , //  9 : name, l(?), verb, r
-	"return"    , // 10 : return (deprecated)
+	"return"    , // 10 : return
 	"nil"       , // 11 :
 	"cond"      , // 12 : body (list of expressions)
 	"quote"     , // 13 : value (for quoting verbs/etc as a value)
