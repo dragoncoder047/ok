@@ -5,4 +5,5 @@
 , "scripts": { "start": "node repl.js", "test": "node test.js" }
 , "main": "oK.js"
 , "type": "module"
+, "exports": { ".": "./oK.js", "./convert": "./convert.js" }
 }

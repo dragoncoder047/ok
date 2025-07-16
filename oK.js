@@ -463,7 +463,7 @@ function fail(x, env) {
 
 export const vtATOMICMONAD = 0, vtLISTMONAD = 1, vtATOMICDYAD = 2, vtLISTATOMDYAD = 3, vtATOMLISTDYAD = 4, vtLISTLISTDYAD = 5, vtTRIAD = 6, vtTETRAD = 7;
 
-const verbs = {
+export const verbs = {
 	//     a            l            a-a         l-a         a-l         l-l            triad    tetrad
 	":" : [ret,         ret,         rident,     rident,     rident,     rident,        null,    null  ],
 	"+" : [flip,        flip,        ad(plus),   ad(plus),   ad(plus),   ad(plus),      null,    null  ],
@@ -1059,12 +1059,12 @@ export function format(k, indent, symbol) {
 const nativeMonads = {};
 export { nativeMonads as natives };
 export const builtinInfix = { "o": 0, "in": 0 };
-function numericMonad(n, f) { verbs[n] = [f, am(f), null, null, null, null, null, null]; nativeMonads[n] = 0; }
-numericMonad("log", x => k(tNUMBER, Math.log(numeric(x).v)));
-numericMonad("exp", x => k(tNUMBER, Math.exp(numeric(x).v)));
-numericMonad("cos", x => k(tNUMBER, Math.cos(numeric(x).v)));
-numericMonad("sin", x => k(tNUMBER, Math.sin(numeric(x).v)));
-export { numericMonad as nmonad };
+function nativeMonad(n, f) { verbs[n] = [f, am(f), null, null, null, null, null, null]; nativeMonads[n] = 0; }
+nativeMonad("log", x => k(tNUMBER, Math.log(numeric(x).v)));
+nativeMonad("exp", x => k(tNUMBER, Math.exp(numeric(x).v)));
+nativeMonad("cos", x => k(tNUMBER, Math.cos(numeric(x).v)));
+nativeMonad("sin", x => k(tNUMBER, Math.sin(numeric(x).v)));
+export { nativeMonad as nmonad };
 
 export function baseEnv() {
 	var env = new Environment(null);
